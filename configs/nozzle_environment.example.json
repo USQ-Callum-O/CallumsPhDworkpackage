@@ -1,0 +1,282 @@
+{
+  "schema_version": 1,
+  "simulation": {
+    "id": "Nozzle_environment_simulation1.1",
+    "category": "nozzle_environment",
+    "versions": {
+      "mesh": "0.1",
+      "solver": "0.1",
+      "post": "0.1"
+    }
+  },
+  "metadata": {
+    "migrated_from": "sim-10-01.3_config.json",
+    "scientific_review_required": true
+  },
+  "paths": {
+    "geometry_root": "../../Geometry",
+    "results_root": "../../Results"
+  },
+  "geometry": "Nozzle_environment/Basic_Snakebite_7_fluid_domain_geometry-1.pmdb",
+  "stages": [
+    "mesh",
+    "solve",
+    "export",
+    "plot"
+  ],
+  "fluent": {
+    "precision": "double",
+    "dimension": 3,
+    "processor_count": null,
+    "ui_mode": "no_gui",
+    "start_timeout": 600
+  },
+  "meshing": {
+    "workflow_type": "Watertight Geometry",
+    "check_mesh": true,
+    "describe_geometry": {
+      "SetupType": "The geometry consists of only fluid regions with no voids"
+    },
+    "local_sizing": [
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_inlet",
+        "BOIControlType": "Face Size",
+        "BOISize": 0.45,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": [
+          "pressure-inlet"
+        ]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "boi_near_nozzle",
+        "BOIExecution": "Body Of Influence",
+        "BOISize": 0.6,
+        "BOIGrowthRate": 1.25,
+        "BOIFaceLabelList": [
+          "boi-1-solid"
+        ]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "boi_far_field",
+        "BOIExecution": "Body Of Influence",
+        "BOISize": 6.0,
+        "BOIGrowthRate": 1.25,
+        "BOIFaceLabelList": [
+          "boi-4-solid",
+          "boi-5-solid"
+        ]
+      }
+    ],
+    "surface_mesh": {
+      "MinimumSize": 2.4,
+      "MaximumSize": 16.8,
+      "GrowthRate": 1.2,
+      "SizeFunction": "Curvature and Proximity",
+      "CurvatureNormalAngle": 18.0,
+      "NumCellsAcrossGap": 1,
+      "ScopeProximity": "Edges",
+      "SeparateBoundaryZone": "No"
+    },
+    "create_regions": {
+      "NumberOfFlowVolumes": 1,
+      "MeshObject": "basic_snakebite_#7_fluid_domain_geometery-1"
+    },
+    "volume_mesh": {
+      "Solver": "Fluent",
+      "VolumeFill": "poly-hexcore",
+      "BufferLayers": 5,
+      "PeelLayers": 3,
+      "VolumeFillControls": {
+        "HexMinCellLength": 0.6,
+        "HexMaxCellLength": 16.8
+      },
+      "EnableParallelMeshing": true,
+      "QualityMethod": "Orthogonal",
+      "QualityLimit": 0.05,
+      "UseSizeField": false,
+      "PolyFeatureAngle": 30
+    }
+  },
+  "solver": {
+    "input": "mesh",
+    "write_case_data": true,
+    "operations": [
+      {
+        "action": "set",
+        "path": "settings/setup/general/solver/type",
+        "value": "pressure-based"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/solver/time",
+        "value": "steady"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/operating_conditions/gravity/enable",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/operating_conditions/gravity/components",
+        "value": [
+          0.0,
+          -9.81,
+          0.0
+        ]
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/operating_conditions/operating_pressure",
+        "value": 0.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/energy",
+        "value": {
+          "enabled": true
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/model",
+        "value": "transition-sst"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/materials/fluid/@air/density/option",
+        "value": "ideal-gas"
+      },
+      {
+        "action": "set_item",
+        "path": "settings/setup/materials/solid",
+        "name": "Silicon-nitride_custom",
+        "value": {
+          "density": {
+            "option": "constant",
+            "value": 3194.8
+          },
+          "specific_heat": {
+            "option": "constant",
+            "value": 617.71
+          },
+          "thermal_conductivity": {
+            "option": "constant",
+            "value": 32.974
+          }
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/cell_zone_conditions/@enclosure-solid/material",
+        "value": "air"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure-inlet/momentum/gauge_total_pressure",
+        "value": 373145.9
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure-inlet/thermal/total_temperature",
+        "value": 292.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@outlet.1/momentum/gauge_pressure",
+        "value": 93887.982
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@outlet.2/momentum/gauge_pressure",
+        "value": 93887.982
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@outlet.3/momentum/gauge_pressure",
+        "value": 93887.982
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/initialization/hybrid_initialize"
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/run_calculation/iterate",
+        "kwargs": {
+          "iter_count": 500,
+          "report": true
+        }
+      }
+    ]
+  },
+  "export": {
+    "surfaces": [
+      {
+        "name": "axial_line",
+        "kind": "line",
+        "p0": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "p1": [
+          0.0,
+          0.5,
+          0.0
+        ],
+        "destination": "line",
+        "fields": [
+          "y-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude"
+        ]
+      },
+      {
+        "name": "midplane",
+        "kind": "plane",
+        "method": "yz-plane",
+        "x": 0.0,
+        "destination": "contour",
+        "fields": [
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "velocity-magnitude"
+        ]
+      }
+    ]
+  },
+  "plotting": {
+    "line_plots": [
+      {
+        "source": "Line_data/axial_line.csv",
+        "x": "y-coordinate",
+        "y": [
+          "pressure",
+          "total-pressure"
+        ],
+        "x_label": "Axial position (m)",
+        "y_label": "Pressure (Pa)",
+        "title": "Nozzle/environment axial pressure",
+        "filename": "Axial_line_plot.png"
+      }
+    ],
+    "contour_plots": [
+      {
+        "source": "Contour_data/midplane.csv",
+        "x": "y-coordinate",
+        "y": "z-coordinate",
+        "value": "pressure",
+        "title": "Nozzle/environment midplane pressure",
+        "colorbar_label": "Pressure (Pa)",
+        "filename": "Midplane_pressure.png"
+      }
+    ]
+  }
+}

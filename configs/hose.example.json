@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "simulation": {
+    "id": "Hose_simulation1.1",
+    "category": "hose",
+    "versions": {
+      "mesh": "0.1",
+      "solver": "0.1",
+      "post": "0.1"
+    }
+  },
+  "metadata": {
+    "migrated_from": "sim-3-07_config.json and streight_hose-solver-3-03.py",
+    "scientific_review_required": true
+  },
+  "paths": {
+    "geometry_root": "../../Geometry",
+    "results_root": "../../Results"
+  },
+  "geometry": "Hose/5000mm_straight_hose.pmdb",
+  "stages": [
+    "mesh",
+    "solve",
+    "export",
+    "plot"
+  ],
+  "fluent": {
+    "precision": "double",
+    "dimension": 3,
+    "processor_count": null,
+    "ui_mode": "no_gui",
+    "start_timeout": 600
+  },
+  "meshing": {
+    "workflow_type": "Watertight Geometry",
+    "check_mesh": true,
+    "describe_geometry": {
+      "SetupType": "The geometry consists of only fluid regions with no voids"
+    },
+    "update_boundaries": {
+      "SelectionType": "label",
+      "BoundaryLabelList": [
+        "mass-flow-inlet",
+        "outlet",
+        "wall"
+      ],
+      "BoundaryLabelTypeList": [
+        "mass-flow-inlet",
+        "outlet",
+        "wall"
+      ]
+    },
+    "local_sizing": [
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_inlet_outlet",
+        "BOIControlType": "Face Size",
+        "BOISize": 0.6,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": [
+          "mass-flow-inlet",
+          "outlet"
+        ]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_wall",
+        "BOIControlType": "Face Size",
+        "BOISize": 1.0,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": [
+          "wall"
+        ]
+      }
+    ],
+    "surface_mesh": {
+      "MinimumSize": 0.05,
+      "MaximumSize": 8.0,
+      "GrowthRate": 1.2,
+      "SizeFunction": "Curvature and Proximity",
+      "CurvatureNormalAngle": 18.0,
+      "NumCellsAcrossGap": 1,
+      "ScopeProximity": "Edges",
+      "SeparateBoundaryZone": "No"
+    },
+    "create_regions": {
+      "NumberOfFlowVolumes": 1,
+      "MeshObject": "hose-hose"
+    },
+    "boundary_layers": [
+      {
+        "BLControlName": "uniform_1",
+        "FirstHeight": 0.005,
+        "LocalPrismPreferences": {
+          "Continuous": "Continuous",
+          "ShowLocalPrismPreferences": true
+        },
+        "NumberOfLayers": 15,
+        "OffsetMethodType": "uniform",
+        "Rate": 1.4
+      }
+    ],
+    "volume_mesh": {
+      "Solver": "Fluent",
+      "VolumeFill": "poly-hexcore",
+      "BufferLayers": 5,
+      "PeelLayers": 3,
+      "VolumeFillControls": {
+        "HexMinCellLength": 0.01,
+        "HexMaxCellLength": 10.0
+      },
+      "EnableParallelMeshing": true,
+      "QualityMethod": "Orthogonal",
+      "QualityLimit": 0.05,
+      "UseSizeField": false,
+      "PolyFeatureAngle": 30
+    }
+  },
+  "solver": {
+    "input": "mesh",
+    "write_case_data": true,
+    "operations": [
+      {
+        "action": "set",
+        "path": "settings/setup/general/solver/type",
+        "value": "pressure-based"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/solver/time",
+        "value": "steady"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/operating_conditions/operating_pressure",
+        "value": 0.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/energy",
+        "value": {
+          "enabled": true
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/model",
+        "value": "k-epsilon"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/k_epsilon_model",
+        "value": "realizable"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/cell_zone_conditions/fluid/@hose-hose/general/material",
+        "value": "air"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/mass_flow_inlet/@mass-flow-inlet/momentum/mass_flow_rate",
+        "value": 0.1136
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/mass_flow_inlet/@mass-flow-inlet/momentum/supersonic_gauge_pressure",
+        "value": 689476.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/mass_flow_inlet/@mass-flow-inlet/thermal/total_temperature",
+        "value": 300.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_outlet/@outlet/momentum/gauge_pressure",
+        "value": 689476.0
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/initialization/hybrid_initialize"
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/run_calculation/iterate",
+        "kwargs": {
+          "iter_count": 250
+        }
+      }
+    ]
+  },
+  "export": {
+    "surfaces": [
+      {
+        "name": "axial_line",
+        "kind": "line",
+        "p0": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "p1": [
+          0.0,
+          0.0,
+          5.0
+        ],
+        "destination": "line",
+        "fields": [
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "temperature"
+        ]
+      },
+      {
+        "name": "midplane",
+        "kind": "plane",
+        "method": "yz-plane",
+        "x": 0.0,
+        "destination": "contour",
+        "fields": [
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "velocity-magnitude"
+        ]
+      }
+    ]
+  },
+  "plotting": {
+    "line_plots": [
+      {
+        "source": "Line_data/axial_line.csv",
+        "x": "z-coordinate",
+        "y": [
+          "pressure",
+          "total-pressure"
+        ],
+        "x_label": "Hose axial position (m)",
+        "y_label": "Pressure (Pa)",
+        "title": "Hose axial pressure",
+        "filename": "Axial_line_plot.png"
+      }
+    ],
+    "contour_plots": [
+      {
+        "source": "Contour_data/midplane.csv",
+        "x": "y-coordinate",
+        "y": "z-coordinate",
+        "value": "pressure",
+        "title": "Hose midplane pressure",
+        "colorbar_label": "Pressure (Pa)",
+        "filename": "Midplane_pressure.png"
+      }
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "callums-simulation-package"
+version = "0.1.0"
+description = "Reproducible, configuration-driven PyFluent simulation workflows"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+authors = [{ name = "Callum" }]
+dependencies = []
+
+[project.optional-dependencies]
+fluent = ["ansys-fluent-core==0.37.2"]
+plot = [
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "pandas>=2.2",
+]
+dev = ["ruff>=0.9"]
+all = [
+  "ansys-fluent-core==0.37.2",
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "pandas>=2.2",
+]
+
+[project.scripts]
+callums-sim = "callums_simulation_package.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]

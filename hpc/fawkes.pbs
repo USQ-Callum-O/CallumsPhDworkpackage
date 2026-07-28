@@ -1,0 +1,24 @@
+#!/bin/bash
+#PBS -N callums-pyfluent
+#PBS -l select=1:ncpus=16:mem=64gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+
+set -euo pipefail
+
+cd "${PBS_O_WORKDIR:?Submit this job from the package repository}"
+
+# Confirm the exact module/version with `module avail ansys` on Fawkes.
+module load ansys
+source .venv/bin/activate
+
+# These override paths.paths in JSON and keep configs identical across machines.
+export CALLUMS_GEOMETRY_ROOT="${CALLUMS_GEOMETRY_ROOT:-$PBS_O_WORKDIR/../Geometry}"
+export CALLUMS_RESULTS_ROOT="${CALLUMS_RESULTS_ROOT:-$PBS_O_WORKDIR/../Results}"
+
+# Override at submission with: qsub -v CONFIG=configs/hose.example.json hpc/fawkes.pbs
+CONFIG="${CONFIG:-configs/nozzle.example.json}"
+
+callums-sim validate "$CONFIG"
+callums-sim run "$CONFIG"
+
