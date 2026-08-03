@@ -1,0 +1,78 @@
+#!/bin/bash -l
+
+#PBS -N sim-1-12-test
+#PBS -l select=1:ncpus=4:mem=64gb
+#PBS -l walltime=04:00:00
+#PBS -l software=ansys
+#PBS -j oe
+#PBS -q default
+#PBS -M u1173289@usq.edu.au
+
+set -euo pipefail
+
+echo "============================================================"
+echo "Job started: $(date)"
+echo "PBS job ID: ${PBS_JOBID:-not-set}"
+echo "Host: $(hostname)"
+echo "Submission directory: ${PBS_O_WORKDIR:-not-set}"
+echo "Node file: ${PBS_NODEFILE:-not-set}"
+echo "============================================================"
+
+cd "$PBS_O_WORKDIR"
+
+module purge
+module load python/3.11.6-gcc-mzj
+module load ansys/2025r1
+
+echo
+echo "Loaded modules:"
+module list
+
+echo
+echo "Python before virtual-environment activation:"
+which python
+python --version
+
+echo
+echo "Fluent executable:"
+which fluent
+
+source .venv/bin/activate
+
+echo
+echo "Python after virtual-environment activation:"
+which python
+python --version
+
+echo
+echo "callums-sim executable:"
+which callums-sim
+
+export CALLUMS_RESULTS_ROOT="$HOME/Simulations/Results"
+
+CONFIG="${CONFIG:-configs/sim-1-12.fawkes.json}"
+STAGES="${STAGES:-solve}"
+
+IFS='+' read -r -a STAGE_ARRAY <<< "$STAGES"
+
+echo
+echo "Configuration: $CONFIG"
+echo "Stages: ${STAGE_ARRAY[*]}"
+echo "Results root: $CALLUMS_RESULTS_ROOT"
+echo
+
+echo "Resolved execution plan:"
+callums-sim plan "$CONFIG" --stages "${STAGE_ARRAY[@]}"
+
+echo
+echo "Validating inputs:"
+callums-sim validate "$CONFIG" --stages "${STAGE_ARRAY[@]}"
+
+echo
+echo "Starting simulation:"
+callums-sim run "$CONFIG" --stages "${STAGE_ARRAY[@]}"
+
+echo
+echo "============================================================"
+echo "Job completed successfully: $(date)"
+echo "============================================================"

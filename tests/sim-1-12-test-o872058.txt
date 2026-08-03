@@ -1,0 +1,162 @@
+============================================================
+Job started: Fri Jul 31 16:36:53 AEST 2026
+PBS job ID: 872058.hpc-clm-prd-t1
+Host: n031
+Submission directory: /home/u1173289/Simulations/CallumsPhDworkpackage
+Node file: /var/spool/pbs/aux/872058.hpc-clm-prd-t1
+============================================================
+
+Loaded modules:
+Currently Loaded Modulefiles:
+ 1) python/3.11.6-gcc-mzj   2) ansys/2025r1  
+
+Python before virtual-environment activation:
+/opt/sw/python/python-3.11.6-mzj/bin/python
+Python 3.11.6
+
+Fluent executable:
+/opt/sw/ansys/2025r1/v251/fluent/bin/fluent
+
+Python after virtual-environment activation:
+/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/bin/python
+Python 3.11.6
+
+callums-sim executable:
+/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/bin/callums-sim
+
+Configuration: configs/sim-1-12.fawkes.json
+Stages: solve
+Results root: /home/u1173289/Simulations/Results
+
+Resolved execution plan:
+{
+  "config": "/home/u1173289/Simulations/CallumsPhDworkpackage/configs/sim-1-12.fawkes.json",
+  "simulation_id": "sim-1",
+  "category": "nozzle",
+  "run_name": "sim-1-12-01-1",
+  "geometry": "/home/u1173289/Simulations/Geometry/Nozzle_models/Discovery_files/Snakebite_No6_nozzle_only_sim-1.dsco",
+  "inputs": {},
+  "stages": [
+    "solve"
+  ],
+  "artifacts": {
+    "run_root": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1",
+    "case_and_data": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Case_and_data",
+    "data_export": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Data_export",
+    "throat_data": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Data_export/Throat_data",
+    "contour_data": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Data_export/Contour_data",
+    "line_data": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Data_export/Line_data",
+    "profile_data": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Data_export/Profile_data",
+    "results_plotting": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Results_plotting",
+    "line_plot": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Results_plotting/Line_plot",
+    "contour_plot": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Results_plotting/Contour_plot",
+    "mesh": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Case_and_data/sim-1-12-01-1.msh.h5",
+    "case": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Case_and_data/sim-1-12-01-1.cas.h5",
+    "data": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Case_and_data/sim-1-12-01-1.dat.h5",
+    "case_data_base": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/Case_and_data/sim-1-12-01-1",
+    "manifest": "/home/u1173289/Simulations/Results/Nozzle_simulations/sim-1-12-01-1/run_manifest.json"
+  }
+}
+
+Validating inputs:
+Valid: /home/u1173289/Simulations/CallumsPhDworkpackage/configs/sim-1-12.fawkes.json
+
+Starting simulation:
+/opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0/bin/fluent -r25.1.0 3ddp -py -t1 -cnf=n031.head.hpc.usq.edu.au:1 -gu -driver null -sifile=/localscratch/pbs.872058.hpc-clm-prd-t1/serverinfo-ze8_apd6.txt -nm
+Warning:  DISPLAY environment variable is not set.
+  Graphics and GUI will not operate correctly
+  without this being set properly.
+/opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0/cortex/lnamd64/cortex.25.1.0 -f fluent -py -gu -sifile=/localscratch/pbs.872058.hpc-clm-prd-t1/serverinfo-ze8_apd6.txt -nm (fluent "3ddp -pdefault  -host -r25.1.0 -t1 -mpi=intel -cnf=n031.head.hpc.usq.edu.au:1 -path/opt/sw/ansys/2025r1/v251/fluent -ssh")
+
+Opening input/output transcript to file "/home/u1173289/Simulations/CallumsPhDworkpackage/fluent-20260731-163705-3951195.trn".
+Auto-Transcript Start Time:  16:37:05, 31 Jul 2026 
+/opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0/bin/fluent -r25.1.0 3ddp -pdefault -host -t1 -mpi=intel -cnf=n031.head.hpc.usq.edu.au:1 -path/opt/sw/ansys/2025r1/v251/fluent -ssh -cx n031.head.hpc.usq.edu.au:46447:42063
+Warning:  DISPLAY environment variable is not set.
+  Graphics and GUI will not operate correctly
+  without this being set properly.
+Starting /opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0/lnamd64/3ddp_host/fluent.25.1.0 host -cx n031.head.hpc.usq.edu.au:46447:42063 "(list (rpsetvar (QUOTE parallel/function) "fluent 3ddp -flux -node -r25.1.0 -t1 -pdefault -mpi=intel -cnf=n031.head.hpc.usq.edu.au:1 -ssh") (rpsetvar (QUOTE parallel/rhost) "") (rpsetvar (QUOTE parallel/ruser) "") (rpsetvar (QUOTE parallel/nprocs_string) "1") (rpsetvar (QUOTE parallel/auto-spawn?) #t) (rpsetvar (QUOTE parallel/trace-level) 0) (rpsetvar (QUOTE parallel/remote-shell) 1) (rpsetvar (QUOTE parallel/path) "/opt/sw/ansys/2025r1/v251/fluent") (rpsetvar (QUOTE parallel/hostsfile) "n031.head.hpc.usq.edu.au:1") (rpsetvar (QUOTE gpuapp/devices) ""))"
+
+              Welcome to ANSYS Fluent 2025 R1.01
+
+              Copyright 1987-2025 ANSYS, Inc. All Rights Reserved.
+              Unauthorized use, distribution or duplication is prohibited.
+              This product is subject to U.S. laws governing export and re-export.
+              For full Legal Notice, see documentation.
+
+Build Time: Jan 09 2025 12:07:36 EST  Build Id: 10211  
+ 
+Connected License Server List:	1055@lm-ansys.usq.edu.au
+
+*********************************************
+Info: Your license enables 4-way parallel execution.
+For faster simulations, please start the application with the appropriate parallel options.
+*********************************************
+
+
+     --------------------------------------------------------------
+     This is an academic version of ANSYS FLUENT. Usage of this product
+     license is limited to the terms and conditions specified in your ANSYS
+     license form, additional terms section.
+     --------------------------------------------------------------
+Host spawning Node 0 on machine "n031" (unix).
+/opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0/bin/fluent -r25.1.0 3ddp -flux -node -t1 -pdefault -mpi=intel -cnf=n031.head.hpc.usq.edu.au:1 -ssh -mport 172.23.0.32:172.23.0.32:34205:0
+Hostfile does not exist, will try to use it as hostname.
+Starting /opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0/multiport/mpi/lnamd64/intel2021/bin/mpirun -f /tmp/fluent-appfile.u1173289.3951791 -genv FI_MLX_TLS dc,all -genv FLUENT_ARCH lnamd64 -genv I_MPI_DEBUG 0 -genv I_MPI_ADJUST_GATHERV 3 -genv I_MPI_ADJUST_ALLREDUCE 2 -genv I_MPI_PLATFORM auto -genv PYTHONHOME /opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0/../../commonfiles/CPython/3_10/linx64/Release/python -genv FLUENT_PROD_DIR /opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0 -genv FLUENT_AFFINITY 0 -genv I_MPI_PIN enable -genv KMP_AFFINITY disabled -machinefile /tmp/fluent-appfile.u1173289.3951791 -np 1 /opt/sw/ansys/2025r1/v251/fluent/fluent25.1.0/lnamd64/3ddp_node/fluent_mpi.25.1.0 node -mpiw intel -pic mpi-auto-selected -mport 172.23.0.32:172.23.0.32:34205:0
+[1785479835.434611] [n031:3951899:0]     ucp_context.c:1524 UCX  ERROR no usable transports/devices (asked all devices)
+Abort(2138767) on node 0 (rank 0 in comm 0): Fatal error in PMPI_Init: Unknown error class, error stack:
+MPIR_Init_thread(189)........: 
+MPID_Init(1561)..............: 
+MPIDI_OFI_mpi_init_hook(1624): 
+create_vni_context(2201).....: 
+create_vni_domain(2419)......: OFI fi_open domain failed (ofi_init.c:2419:create_vni_domain:No such device)
+pyfluent.launcher ERROR: Exception caught - TimeoutError: The launch process has timed out.
+Traceback (most recent call last):
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/ansys/fluent/core/launcher/standalone_launcher.py", line 276, in __call__
+    raise ex
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/ansys/fluent/core/launcher/standalone_launcher.py", line 256, in __call__
+    _await_fluent_launch(
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/ansys/fluent/core/launcher/launcher_utils.py", line 161, in _await_fluent_launch
+    raise TimeoutError("The launch process has timed out.")
+TimeoutError: The launch process has timed out.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/bin/callums-sim", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/src/callums_simulation_package/cli.py", line 40, in main
+    run_plan = run(args.config, args.stages)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/src/callums_simulation_package/runner.py", line 237, in run
+    functions[stage](run_plan.config, run_plan.artifacts, launcher=launcher)
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/src/callums_simulation_package/stages/solver.py", line 44, in run_solver
+    with managed_session("solver", config.launch, launcher) as session:
+  File "/opt/sw/python/python-3.11.6-mzj/lib/python3.11/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/src/callums_simulation_package/fluent.py", line 31, in managed_session
+    session = (launcher or launch)(mode, config)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/src/callums_simulation_package/fluent.py", line 22, in launch
+    return pyfluent.launch_fluent(mode=mode, **config.kwargs())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/ansys/fluent/core/utils/deprecate.py", line 136, in wrapper
+    return deprecated_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/deprecated/classic.py", line 199, in wrapper_function
+    return wrapped_(*args_, **kwargs_)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/ansys/fluent/core/utils/deprecate.py", line 136, in wrapper
+    return deprecated_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/deprecated/classic.py", line 199, in wrapper_function
+    return wrapped_(*args_, **kwargs_)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/ansys/fluent/core/launcher/launcher.py", line 393, in launch_fluent
+    return launcher()
+           ^^^^^^^^^^
+  File "/home/u1173289/Simulations/CallumsPhDworkpackage/.venv/lib/python3.11/site-packages/ansys/fluent/core/launcher/standalone_launcher.py", line 322, in __call__
+    raise LaunchFluentError(self._launch_cmd) from ex
+ansys.fluent.core.launcher.error_handler.LaunchFluentError: 
+Fluent Launch command: nohup /opt/sw/ansys/2025r1/v251/fluent/bin/fluent 3ddp -py -t1 -cnf=n031.head.hpc.usq.edu.au:1 -gu -driver null -sifile=/localscratch/pbs.872058.hpc-clm-prd-t1/serverinfo-ze8_apd6.txt -nm &
