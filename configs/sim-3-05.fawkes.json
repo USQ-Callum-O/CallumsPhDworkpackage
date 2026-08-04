@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "simulation": {
+    "id": "sim-3",
+    "category": "hose",
+    "versions": {"mesh": "04", "solver": "03", "post": "05"}
+  },
+  "metadata": {
+    "purpose": "Simulation 3.05 split-stage migration and reusable inlet-profile source case.",
+    "migrated_from_config": "configs/sim-3-05_config.json",
+    "legacy_meshing_script": "PyFluent/Meshing/streight_hose-meshing-3-04.py",
+    "legacy_solver_script": "PyFluent/Hose_sim-1_code/streight_hose-solver-3-03.py",
+    "legacy_postprocessing_script": "PyFluent/Poastprocessing/streight_hose_Sim-3-05-results.py",
+    "legacy_config_postprocessing_pointer": "PyFluent/Poastprocessing/streight_hose_Sim-3-07-results.py",
+    "scientific_review_required": true,
+    "known_migration_differences": [
+      "The legacy config points to the 3-07 postprocessor, but that script writes 3-06 profile names. The matching 3-05 postprocessor and existing 3-05 outputs are used as the authoritative post-processing record.",
+      "The outlet boundary type is normalized from the legacy value outlet to pressure-outlet so it matches the solver's pressure_outlet collection.",
+      "Optional Improve Surface Mesh and Remesh Surface tasks are not forced by the concise structured workflow.",
+      "The legacy line4-360mm surface is actually at z=0.036 m. That active coordinate is preserved for reproducibility despite the misleading name.",
+      "The solver's diagnostic hose_outlet_plane remains at z=0.49 m exactly as coded, although the hose is 5 m long and the postprocessor samples the near-exit plane at z=4.9 m.",
+      "Line exports request coordinate fields explicitly and the generic plotting stage creates multi-series plots rather than the legacy four-panel layout.",
+      "The three active Fluent profile exports are reproduced under Data_export/Profile_data; inactive duplicate profile blocks are not reproduced.",
+      "The current exporter does not write the legacy mass-flow summary CSV. Use Fluent reports or compare against the recorded legacy net imbalance during acceptance testing."
+    ]
+  },
+  "paths": {
+    "geometry_root": "../../Geometry",
+    "input_root": "../../Inputs",
+    "results_root": "../../Results"
+  },
+  "geometry": "Blast_hose/5000mm_streight_hose.dsco",
+  "stages": ["mesh", "solve", "export", "plot"],
+  "fluent": {
+    "precision": "double",
+    "dimension": 3,
+    "processor_count": 4,
+    "ui_mode": "no_gui",
+    "start_timeout": 360,
+    "additional_arguments": "-t4"
+  },
+  "meshing": {
+    "workflow_type": "Watertight Geometry",
+    "check_mesh": true,
+    "describe_geometry": {
+      "SetupType": "The geometry consists of only fluid regions with no voids"
+    },
+    "update_boundaries": {
+      "SelectionType": "label",
+      "BoundaryLabelList": ["mass-flow-inlet", "outlet", "wall"],
+      "BoundaryLabelTypeList": ["mass-flow-inlet", "pressure-outlet", "wall"]
+    },
+    "local_sizing": [
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_1",
+        "BOIControlType": "Face Size",
+        "BOISize": 0.6,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": ["mass-flow-inlet", "outlet"]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_2",
+        "BOIControlType": "Face Size",
+        "BOISize": 1.0,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": ["wall"]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "boi1-boi1",
+        "BOIExecution": "Body Of Influence",
+        "BOISize": 14.4,
+        "BOIGrowthRate": 1.25,
+        "BOIFaceLabelList": ["boi1-boi1"]
+      }
+    ],
+    "surface_mesh": {
+      "MinimumSize": 0.5,
+      "MaximumSize": 8.4,
+      "GrowthRate": 1.2,
+      "SizeFunction": "Curvature and Proximity",
+      "CurvatureNormalAngle": 18.0,
+      "NumCellsAcrossGap": 1,
+      "ScopeProximity": "Edges",
+      "SeparateBoundaryZone": "No"
+    },
+    "repair_geometry": {
+      "UseAutoRepair": "Yes",
+      "RemoveDuplicateFaces": "Yes",
+      "CollapseShortEdges": "Yes",
+      "FixSmallSlivers": "Yes",
+      "SewGeometry": "Yes"
+    },
+    "create_regions": {"NumberOfFlowVolumes": 1, "MeshObject": "hose-hose"},
+    "boundary_layers": [
+      {
+        "AddChild": "yes",
+        "BOIControlName": "smooth-transition_1",
+        "BOIOffsetMethod": "smooth-transition",
+        "BOINumLayers": 10,
+        "BOITransitionRatio": 0.272,
+        "BOIGrowthRate": 1.2,
+        "BOIAddIn": "fluid-regions",
+        "BOIGrowOn": "only-walls"
+      }
+    ],
+    "volume_mesh": {
+      "Solver": "Fluent",
+      "VolumeFill": "poly-hexcore",
+      "BufferLayers": 5,
+      "PeelLayers": 3,
+      "VolumeFillControls": {"HexMinCellLength": 0.25, "HexMaxCellLength": 17.0},
+      "VolumeMeshPreferences": {
+        "CheckSelfProximity": "yes",
+        "ShowVolumeMeshPreferences": true
+      },
+      "EnableParallelMeshing": true,
+      "QualityMethod": "Orthogonal",
+      "QualityLimit": 0.05,
+      "UseSizeField": false,
+      "PolyFeatureAngle": 30,
+      "AvoidOctreeTransition": false,
+      "CheckSelfProximity": false,
+      "WritePrismControlFile": false
+    }
+  },
+  "solver": {
+    "input": "mesh",
+    "write_case_data": true,
+    "operations": [
+      {"action": "set", "path": "settings/setup/general/solver/type", "value": "pressure-based"},
+      {"action": "set", "path": "settings/setup/general/solver/time", "value": "steady"},
+      {"action": "set", "path": "settings/setup/general/operating_conditions/gravity/enable", "value": true},
+      {"action": "set", "path": "settings/setup/general/operating_conditions/gravity/components", "value": [0.0, -9.81, 0.0]},
+      {"action": "set", "path": "settings/setup/general/operating_conditions/operating_pressure", "value": 0.0},
+      {
+        "action": "set_item",
+        "path": "settings/setup/materials/fluid",
+        "name": "air",
+        "value": {
+          "density": {
+            "real_gas_nist": {
+              "saturation_points": 12,
+              "temperature_maximum": 1600.0,
+              "temperature_minimum": 237.3,
+              "temperature_points": 101,
+              "pressure_maximum": 20000,
+              "pressure_minimum": 13200,
+              "pressure_points": 101,
+              "lookup_table": true,
+              "nist_fluid": "AIR"
+            },
+            "option": "real-gas-nist"
+          },
+          "viscosity": {"option": "real-gas-nist"},
+          "specific_heat": {"option": "real-gas-nist"},
+          "thermal_conductivity": {"option": "real-gas-nist"}
+        }
+      },
+      {
+        "action": "set_item",
+        "path": "settings/setup/materials/solid",
+        "name": "rubber-natural-custim",
+        "value": {
+          "density": {"option": "constant", "value": 949.79},
+          "specific_heat": {"option": "constant", "value": 1903.1},
+          "thermal_conductivity": {"option": "constant", "value": 0.14422}
+        }
+      },
+      {"action": "set", "path": "settings/setup/models/energy", "value": {"enabled": true}},
+      {"action": "set", "path": "settings/setup/models/viscous/model", "value": "k-epsilon"},
+      {"action": "set", "path": "settings/setup/models/viscous/k_epsilon_model", "value": "realizable"},
+      {"action": "set", "path": "settings/setup/models/viscous/near_wall_treatment/wall_treatment", "value": "standard-wall-fn"},
+      {"action": "set", "path": "settings/setup/models/viscous/options/compressibility_effects", "value": {"enabled": true}},
+      {"action": "set", "path": "settings/setup/models/viscous/options/viscous_heating", "value": {"enabled": true}},
+      {"action": "set", "path": "settings/setup/cell_zone_conditions/fluid/@hose-hose/general/material", "value": "air"},
+      {"action": "set", "path": "settings/setup/boundary_conditions/mass_flow_inlet/@mass-flow-inlet/momentum/mass_flow_rate", "value": 0.1136},
+      {"action": "set", "path": "settings/setup/boundary_conditions/mass_flow_inlet/@mass-flow-inlet/momentum/supersonic_gauge_pressure", "value": 689476.0},
+      {"action": "set", "path": "settings/setup/boundary_conditions/mass_flow_inlet/@mass-flow-inlet/momentum/reference_frame", "value": "Absolute"},
+      {"action": "set", "path": "settings/setup/boundary_conditions/mass_flow_inlet/@mass-flow-inlet/momentum/direction_specification", "value": "Normal to Boundary"},
+      {"action": "set", "path": "settings/setup/boundary_conditions/mass_flow_inlet/@mass-flow-inlet/thermal/total_temperature", "value": 300.0},
+      {"action": "set", "path": "settings/setup/boundary_conditions/pressure_outlet/@outlet/momentum/gauge_pressure", "value": 689476.0},
+      {"action": "set", "path": "settings/setup/boundary_conditions/@wall/momentum/wall_motion", "value": "Stationary Wall"},
+      {"action": "set", "path": "settings/setup/boundary_conditions/@wall/momentum/shear_condition", "value": "No Slip"},
+      {"action": "set", "path": "settings/setup/boundary_conditions/@wall/thermal/material", "value": "rubber-natural-custim"},
+      {"action": "set", "path": "settings/setup/boundary_conditions/@wall/turbulence/roughness_height", "value": 0.000006},
+      {"action": "create", "path": "settings/results/surfaces/plane_surface", "name": "mid_hose"},
+      {"action": "set", "path": "settings/results/surfaces/plane_surface/@mid_hose/method", "value": "yz-plane"},
+      {"action": "set", "path": "settings/results/surfaces/plane_surface/@mid_hose/x", "value": 0.016},
+      {"action": "create", "path": "settings/results/surfaces/plane_surface", "name": "hose_inlet_plane"},
+      {"action": "set", "path": "settings/results/surfaces/plane_surface/@hose_inlet_plane/method", "value": "xy-plane"},
+      {"action": "set", "path": "settings/results/surfaces/plane_surface/@hose_inlet_plane/z", "value": 0.01},
+      {"action": "create", "path": "settings/results/surfaces/plane_surface", "name": "hose_outlet_plane"},
+      {"action": "set", "path": "settings/results/surfaces/plane_surface/@hose_outlet_plane/method", "value": "xy-plane"},
+      {"action": "set", "path": "settings/results/surfaces/plane_surface/@hose_outlet_plane/z", "value": 0.49},
+      {"action": "set_item", "path": "settings/solution/report_definitions/surface", "name": "p_inlet_avg", "value": {"report_type": "surface-areaavg", "field": "total-pressure", "surfaces": ["hose_inlet_plane"]}},
+      {"action": "set_item", "path": "settings/solution/report_definitions/surface", "name": "p_outlet_avg", "value": {"report_type": "surface-areaavg", "field": "total-pressure", "surfaces": ["hose_outlet_plane"]}},
+      {"action": "set", "path": "settings/solution/methods/p_v_coupling/flow_scheme", "value": "Coupled"},
+      {"action": "set", "path": "settings/solution/methods/spatial_discretization/gradient_scheme", "value": "least-square-cell-based"},
+      {"action": "set_item", "path": "settings/solution/methods/spatial_discretization/discretization_scheme", "name": "pressure", "value": "second-order"},
+      {"action": "set_item", "path": "settings/solution/methods/spatial_discretization/discretization_scheme", "name": "density", "value": "second-order-upwind"},
+      {"action": "set_item", "path": "settings/solution/methods/spatial_discretization/discretization_scheme", "name": "mom", "value": "second-order-upwind"},
+      {"action": "set_item", "path": "settings/solution/methods/spatial_discretization/discretization_scheme", "name": "k", "value": "second-order-upwind"},
+      {"action": "set_item", "path": "settings/solution/methods/spatial_discretization/discretization_scheme", "name": "epsilon", "value": "second-order-upwind"},
+      {"action": "set_item", "path": "settings/solution/methods/spatial_discretization/discretization_scheme", "name": "temperature", "value": "second-order-upwind"},
+      {"action": "set", "path": "settings/solution/methods/pseudo_time_method/formulation/coupled_solver", "value": "global-time-step"},
+      {"action": "set", "path": "settings/solution/methods/warped_face_gradient_correction/enable", "value": true},
+      {"action": "set", "path": "settings/solution/initialization/initialization_type", "value": "hybrid"},
+      {"action": "call", "path": "settings/solution/initialization/hybrid_initialize"},
+      {"action": "call", "path": "settings/solution/run_calculation/iterate", "kwargs": {"iter_count": 250}}
+    ]
+  },
+  "export": {
+    "surfaces": [
+      {"name": "central-line", "kind": "line", "p0": [0.0, 0.0, 0.0], "p1": [0.0, 0.0, 5.0], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line1-25mm", "kind": "line", "p0": [0.0, -0.016, 0.025], "p1": [0.0, 0.016, 0.025], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line2-100mm", "kind": "line", "p0": [0.0, -0.016, 0.1], "p1": [0.0, 0.016, 0.1], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line3-250mm", "kind": "line", "p0": [0.0, -0.016, 0.25], "p1": [0.0, 0.016, 0.25], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line4-360mm", "kind": "line", "p0": [0.0, -0.016, 0.036], "p1": [0.0, 0.016, 0.036], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line5-500mm", "kind": "line", "p0": [0.0, -0.016, 0.5], "p1": [0.0, 0.016, 0.5], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line6-1000mm", "kind": "line", "p0": [0.0, -0.016, 1.0], "p1": [0.0, 0.016, 1.0], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line7-1300mm", "kind": "line", "p0": [0.0, -0.016, 1.3], "p1": [0.0, 0.016, 1.3], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line8-1500mm", "kind": "line", "p0": [0.0, -0.016, 1.5], "p1": [0.0, 0.016, 1.5], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line9-1700mm", "kind": "line", "p0": [0.0, -0.016, 1.7], "p1": [0.0, 0.016, 1.7], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line10-2000mm", "kind": "line", "p0": [0.0, -0.016, 2.0], "p1": [0.0, 0.016, 2.0], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line11-2500mm", "kind": "line", "p0": [0.0, -0.016, 2.5], "p1": [0.0, 0.016, 2.5], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line12-3500mm", "kind": "line", "p0": [0.0, -0.016, 3.5], "p1": [0.0, 0.016, 3.5], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line13-4500mm", "kind": "line", "p0": [0.0, -0.016, 4.5], "p1": [0.0, 0.016, 4.5], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "line14-4900mm", "kind": "line", "p0": [0.0, -0.016, 4.9], "p1": [0.0, 0.016, 4.9], "destination": "line", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "mid_plane", "kind": "plane", "method": "yz-plane", "x": 0.0, "destination": "contour", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "total-temperature", "pressure", "velocity-magnitude", "dynamic-pressure"]},
+      {"name": "exit_plane_4p9m", "kind": "plane", "method": "xy-plane", "z": 4.9, "destination": "contour", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "pressure", "temperature", "x-velocity", "y-velocity", "z-velocity", "turb-kinetic-energy", "turb-diss-rate"], "profile": {"filename": "streight_hose-3-05_exit_plane_4900mm.prof", "fields": ["x-velocity", "y-velocity", "z-velocity", "temperature", "turb-kinetic-energy", "turb-diss-rate", "pressure"]}},
+      {"name": "test_plane_1p3m", "kind": "plane", "method": "xy-plane", "z": 1.3, "destination": "contour", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "pressure", "temperature", "x-velocity", "y-velocity", "z-velocity", "turb-kinetic-energy", "turb-diss-rate"], "profile": {"filename": "streight_hose-3-05_test_plane_1300mm.prof", "fields": ["x-velocity", "y-velocity", "z-velocity", "temperature", "turb-kinetic-energy", "turb-diss-rate", "pressure"]}},
+      {"name": "test_exit_plane_1p7m", "kind": "plane", "method": "xy-plane", "z": 1.7, "destination": "contour", "fields": ["x-coordinate", "y-coordinate", "z-coordinate", "pressure", "temperature", "x-velocity", "y-velocity", "z-velocity", "turb-kinetic-energy", "turb-diss-rate"], "profile": {"filename": "streight_hose-3-05_test_exit_plane_1700mm.prof", "fields": ["x-velocity", "y-velocity", "z-velocity", "temperature", "turb-kinetic-energy", "turb-diss-rate", "pressure"]}}
+    ]
+  },
+  "plotting": {
+    "line_plots": [
+      {"source": "Line_data/central-line.csv", "x": "z-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Axial position (m)", "y_label": "Value", "title": "Simulation 3.05 centreline", "filename": "central-line.png"},
+      {"source": "Line_data/line1-25mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 25 mm", "filename": "line1-25mm.png"},
+      {"source": "Line_data/line2-100mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 100 mm", "filename": "line2-100mm.png"},
+      {"source": "Line_data/line3-250mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 250 mm", "filename": "line3-250mm.png"},
+      {"source": "Line_data/line4-360mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 legacy line4 at 36 mm", "filename": "line4-360mm.png"},
+      {"source": "Line_data/line5-500mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 500 mm", "filename": "line5-500mm.png"},
+      {"source": "Line_data/line6-1000mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 1000 mm", "filename": "line6-1000mm.png"},
+      {"source": "Line_data/line7-1300mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 1300 mm", "filename": "line7-1300mm.png"},
+      {"source": "Line_data/line8-1500mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 1500 mm", "filename": "line8-1500mm.png"},
+      {"source": "Line_data/line9-1700mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 1700 mm", "filename": "line9-1700mm.png"},
+      {"source": "Line_data/line10-2000mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 2000 mm", "filename": "line10-2000mm.png"},
+      {"source": "Line_data/line11-2500mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 2500 mm", "filename": "line11-2500mm.png"},
+      {"source": "Line_data/line12-3500mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 3500 mm", "filename": "line12-3500mm.png"},
+      {"source": "Line_data/line13-4500mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 4500 mm", "filename": "line13-4500mm.png"},
+      {"source": "Line_data/line14-4900mm.csv", "x": "y-coordinate", "y": ["total-temperature", "total-pressure", "velocity-magnitude", "dynamic-pressure"], "x_label": "Transverse position (m)", "y_label": "Value", "title": "Simulation 3.05 at 4900 mm", "filename": "line14-4900mm.png"}
+    ],
+    "contour_plots": [
+      {"source": "Contour_data/mid_plane.csv", "x": "y-coordinate", "y": "z-coordinate", "value": "total-temperature", "title": "Simulation 3.05 mid-plane total temperature", "colorbar_label": "Total temperature (K)", "filename": "mid-plane-total-temperature.png"},
+      {"source": "Contour_data/mid_plane.csv", "x": "y-coordinate", "y": "z-coordinate", "value": "pressure", "title": "Simulation 3.05 mid-plane static pressure", "colorbar_label": "Static pressure (Pa)", "filename": "mid-plane-pressure.png"},
+      {"source": "Contour_data/mid_plane.csv", "x": "y-coordinate", "y": "z-coordinate", "value": "velocity-magnitude", "title": "Simulation 3.05 mid-plane velocity", "colorbar_label": "Velocity (m/s)", "filename": "mid-plane-velocity.png"},
+      {"source": "Contour_data/mid_plane.csv", "x": "y-coordinate", "y": "z-coordinate", "value": "dynamic-pressure", "title": "Simulation 3.05 mid-plane dynamic pressure", "colorbar_label": "Dynamic pressure (Pa)", "filename": "mid-plane-dynamic-pressure.png"}
+    ]
+  }
+}
