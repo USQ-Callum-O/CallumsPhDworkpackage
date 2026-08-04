@@ -73,6 +73,14 @@ echo "Starting simulation:"
 callums-sim run "$CONFIG" --stages "${STAGE_ARRAY[@]}"
 
 echo
+echo "Exporting data:"
+callums-sim export "$CONFIG" --stages "${STAGE_ARRAY[@]}"
+
+echo
+echo "plotting data:"
+callums-sim plot "$CONFIG" --stages "${STAGE_ARRAY[@]}"
+
+echo
 echo "============================================================"
 echo "Job completed successfully: $(date)"
 echo "============================================================"

@@ -49,7 +49,7 @@ echo "MPI fabric: $I_MPI_FABRICS"
 echo
 echo "Existing case/data files:"
 ls -lh \
-    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-3-04-03-05/Case_and_data"
+    "$CALLUMS_RESULTS_ROOT/Hose_simulations/sim-3-04-03-05/Case_and_data"
 
 echo
 echo "Resolved execution plan:"
@@ -72,7 +72,7 @@ callums-sim run \
 echo
 echo "Generated export files:"
 find \
-    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-3-04-03-05/Data_export" \
+    "$CALLUMS_RESULTS_ROOT/Hose_simulations/sim-3-04-03-05/Data_export" \
     -type f \
     -printf '%p %s bytes\n' \
     | sort
@@ -80,7 +80,7 @@ find \
 echo
 echo "Generated plot files:"
 find \
-    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-3-04-03-05/Results_plotting" \
+    "$CALLUMS_RESULTS_ROOT/Hose_simulations/sim-3-04-03-05/Results_plotting" \
     -type f \
     -printf '%p %s bytes\n' \
     | sort
