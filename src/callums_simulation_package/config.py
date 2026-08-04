@@ -30,6 +30,7 @@ class FluentLaunchConfig:
     product_version: str | None = None
     ui_mode: str = "no_gui"
     start_timeout: int = 600
+    additional_arguments: str | None = None
 
     def kwargs(self) -> dict[str, Any]:
         values: dict[str, Any] = {
