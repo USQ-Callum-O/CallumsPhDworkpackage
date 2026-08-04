@@ -40,7 +40,8 @@
     "dimension": 3,
     "processor_count": 4,
     "ui_mode": "no_gui",
-    "start_timeout": 600
+    "start_timeout": 900,
+    "additional_arguments": "-pshmem"
   },
   "meshing": {
     "workflow_type": "Watertight Geometry",

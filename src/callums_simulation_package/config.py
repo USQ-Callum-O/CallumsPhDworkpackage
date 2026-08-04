@@ -38,10 +38,16 @@ class FluentLaunchConfig:
             "ui_mode": self.ui_mode,
             "start_timeout": self.start_timeout,
         }
+
         if self.processor_count is not None:
             values["processor_count"] = self.processor_count
+
         if self.product_version:
             values["product_version"] = self.product_version
+
+        if self.additional_arguments:
+            values["additional_arguments"] = self.additional_arguments
+
         return values
 
 
@@ -125,6 +131,7 @@ def _launch_config(raw: Any) -> FluentLaunchConfig:
         product_version=values.get("product_version"),
         ui_mode=values.get("ui_mode", "no_gui"),
         start_timeout=int(values.get("start_timeout", 600)),
+        additional_arguments=values.get("additional_arguments"),
     )
 
 
