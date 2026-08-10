@@ -46,10 +46,10 @@ echo "Results root: $CALLUMS_RESULTS_ROOT"
 echo "Matplotlib backend: $MPLBACKEND"
 echo "MPI fabric: $I_MPI_FABRICS"
 
-echo
-echo "Existing case/data files:"
-ls -lh \
-    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-1-12-02-2/Case_and_data"
+### echo
+### echo "Existing case/data files:"
+### ls -lh \
+###     "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-1-12-02-2/Case_and_data"
 
 echo
 echo "Resolved execution plan:"
