@@ -129,7 +129,7 @@ def run_export(
     """Load case/data and export configured surfaces as Fluent ASCII CSV."""
 
     exports = config.export.get("surfaces", [])
-    reports = config.export.get("reports",list)
+    reports = config.export.get("reports", [])
     operations = config.export.get("operations", [])
     if not isinstance(exports, list) or not isinstance(reports, list) or not isinstance(operations, list):
         raise ConfigError("export.surfaces, export.reports, and export.operations must be arrays")

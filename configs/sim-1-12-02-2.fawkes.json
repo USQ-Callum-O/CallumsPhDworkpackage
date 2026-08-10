@@ -353,46 +353,15 @@
         "value": "least-square-cell-based"
       },
       {
-        "action": "set_item",
+        "action": "patch",
         "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
-        "name": "density",
-        "value": "second-order-upwind"
-      },
-      {
-        "action": "set_item",
-        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
-        "name": "mom",
-        "value": "second-order-upwind"
-      },
-      {
-        "action": "set_item",
-        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
-        "name": "k",
-        "value": "second-order-upwind"
-      },
-      {
-        "action": "set_item",
-        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
-        "name": "omega",
-        "value": "second-order-upwind"
-      },
-      {
-        "action": "set_item",
-        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
-        "name": "intermit",
-        "value": "second-order-upwind"
-      },
-      {
-        "action": "set_item",
-        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
-        "name": "retheta",
-        "value": "second-order-upwind"
-      },
-      {
-        "action": "set_item",
-        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
-        "name": "temperature",
-        "value": "second-order-upwind"
+        "value": {
+          "flow": "second-order-upwind",
+          "k": "second-order-upwind",
+          "omega": "second-order-upwind",
+          "intermit": "second-order-upwind",
+          "retheta": "second-order-upwind"
+        }
       },
       {
         "action": "set",
