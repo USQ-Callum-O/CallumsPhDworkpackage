@@ -1,0 +1,91 @@
+#!/bin/bash -l
+
+#PBS -N sim-1-12-post
+#PBS -l select=1:ncpus=4:mem=64gb
+#PBS -l walltime=04:00:00
+#PBS -l software=ansys
+#PBS -j oe
+#PBS -q default
+#PBS -M u1173289@usq.edu.au
+#PBS -P Callum_Ogilvies.PhD
+
+set -Eeuo pipefail
+
+echo "============================================================"
+echo "Post-processing job started: $(date)"
+echo "PBS job ID: ${PBS_JOBID:-not-set}"
+echo "Host: $(hostname)"
+echo "Submission directory: ${PBS_O_WORKDIR:-not-set}"
+echo "============================================================"
+
+cd "${PBS_O_WORKDIR:?PBS_O_WORKDIR is not set}"
+
+module purge
+module load python/3.11.6-gcc-mzj
+module load ansys/2025r1
+
+source .venv/bin/activate
+
+export CALLUMS_RESULTS_ROOT="$HOME/Simulations/Results"
+
+# This was required for successful single-node Fluent startup.
+export I_MPI_FABRICS=shm
+
+# Plotting must use a non-interactive backend on the compute node.
+export MPLBACKEND=Agg
+
+CONFIG="${CONFIG:-configs/sim-1-12-02-2.fawkes.json}"
+STAGES="${STAGES:-solve+export+plot}"
+
+IFS='+' read -r -a STAGE_ARRAY <<< "$STAGES"
+
+echo
+echo "Configuration: $CONFIG"
+echo "Stages: ${STAGE_ARRAY[*]}"
+echo "Results root: $CALLUMS_RESULTS_ROOT"
+echo "Matplotlib backend: $MPLBACKEND"
+echo "MPI fabric: $I_MPI_FABRICS"
+
+echo
+echo "Existing case/data files:"
+ls -lh \
+    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-1-12-02-2/Case_and_data"
+
+echo
+echo "Resolved execution plan:"
+callums-sim plan \
+    "$CONFIG" \
+    --stages "${STAGE_ARRAY[@]}"
+
+echo
+echo "Validating post-processing inputs:"
+callums-sim validate \
+    "$CONFIG" \
+    --stages "${STAGE_ARRAY[@]}"
+
+echo
+echo "Running solver, export, and plotting:"
+callums-sim run \
+    "$CONFIG" \
+    --stages "${STAGE_ARRAY[@]}"
+
+echo
+echo "Generated export files:"
+find \
+    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-1-12-01-1/Data_export" \
+    -type f \
+    -printf '%p %s bytes\n' \
+    | sort
+
+echo
+echo "Generated plot files:"
+find \
+    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-1-12-01-1/Results_plotting" \
+    -type f \
+    -printf '%p %s bytes\n' \
+    | sort
+
+echo
+echo "============================================================"
+echo "Post-processing job completed: $(date)"
+echo "============================================================"

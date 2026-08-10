@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import csv
 from typing import Any, Mapping
 
 from ..artifacts import RunArtifacts
@@ -93,6 +94,32 @@ def _write_profile(
         "()",
     )
 
+def _export_report(
+    session: Any,
+    artifacts: RunArtifacts,
+    spec: Mapping[str, Any],
+) -> None:
+    """Compute one Fluent report definition and export its value to CSV."""
+
+    report_name = str(spec["name"])
+    filename = str(spec["filename"])
+    column = str(spec.get("column", report_name))
+
+    result = session.settings.solution.report_definitions.compute(
+        report_defs=[report_name]
+    )
+
+    value = float(result[0][report_name][0])
+
+    output = artifacts.data_export / filename
+
+    with output.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow([column])
+        writer.writerow([value])
+
+    print(f"Exported report {report_name}: {value}")
+    print(f"Report CSV: {output}")
 
 def run_export(
     config: SimulationConfig,
@@ -102,9 +129,10 @@ def run_export(
     """Load case/data and export configured surfaces as Fluent ASCII CSV."""
 
     exports = config.export.get("surfaces", [])
+    reports = config.export.get("reports",list)
     operations = config.export.get("operations", [])
-    if not isinstance(exports, list) or not isinstance(operations, list):
-        raise ConfigError("export.surfaces and export.operations must be arrays")
+    if not isinstance(exports, list) or not isinstance(reports, list) or not isinstance(operations, list):
+        raise ConfigError("export.surfaces, export.reports, and export.operations must be arrays")
     if not artifacts.case.is_file() or not artifacts.data.is_file():
         raise FileNotFoundError(
             f"Export requires both case and data files: {artifacts.case}, {artifacts.data}"
@@ -117,6 +145,14 @@ def run_export(
             name: path.as_posix() for name, path in config.inputs.items()
         }
         apply_operations(session, operations, context)
+        # Export Fluent scalar reports.
+        for index, spec in enumerate(reports, start=1):
+            if not isinstance(spec, Mapping):
+                raise ConfigError(f"export report {index} must be an object")
+    
+            _export_report(session, artifacts, spec)
+    
+        # Export Fluent line/plane/surface data.
         for index, spec in enumerate(exports, start=1):
             if not isinstance(spec, Mapping):
                 raise ConfigError(f"export surface {index} must be an object")
