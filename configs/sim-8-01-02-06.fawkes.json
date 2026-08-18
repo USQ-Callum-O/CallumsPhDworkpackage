@@ -34,9 +34,10 @@
   "fluent": {
     "precision": "double",
     "dimension": 3,
-    "processor_count": null,
+    "processor_count": 8,
     "ui_mode": "no_gui",
-    "start_timeout": 600
+    "start_timeout": 600,
+    "additional_arguments": "-t8"
   },
   "meshing": {
     "workflow_type": "Watertight Geometry",
@@ -216,7 +217,6 @@
       {"action": "call", "path": "settings/solution/initialization/hybrid_initialize"},
       {"action": "set", "path": "settings/solution/run_calculation/transient_controls/type", "value": "Fixed"},
       {"action": "set", "path": "settings/solution/run_calculation/transient_controls/method", "value": "User-Specified"},
-      {"action": "set", "path": "settings/solution/run_calculation/transient_controls/duration_specification_method", "value": "time-step-count"},
       {"action": "set", "path": "settings/solution/run_calculation/transient_controls/time_step_size", "value": 0.0025},
       {"action": "set", "path": "settings/solution/run_calculation/transient_controls/time_step_count", "value": 150},
       {"action": "set", "path": "settings/solution/run_calculation/transient_controls/max_iter_per_time_step", "value": 250},
