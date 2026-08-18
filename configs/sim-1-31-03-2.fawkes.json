@@ -1,0 +1,826 @@
+{
+  "schema_version": 1,
+  "simulation": {
+    "id": "sim-1",
+    "category": "nozzle",
+    "versions": {
+      "mesh": "31",
+      "solver": "03",
+      "post": "02"
+    }
+  },
+  "metadata": {
+    "purpose": "To test if increasing the outlet domain improves density based solver solution",
+    "migrated_from_config": "Na",
+    "legacy_meshing_script": "NA",
+    "legacy_solver_script": "Na",
+    "legacy_postprocessing_script": "Na",
+    "legacy_processor_count": 4,
+    "scientific_review_required": true,
+    "known_migration_differences": [
+      "The legacy Share Topology task ran only when Fluent exposed it; the structured workflow does not force that optional task.",
+      "The legacy wall roughness and wall thermal-material assignments were inside a broad try/except and could fail silently; default smooth stationary no-slip walls are encoded explicitly instead.",
+      "The generic export stage does not yet write the legacy mass-flow/convergence report CSV or report-monitor images.",
+      "The legacy report named NE_P_static_avg actually sampled dynamic-pressure, so it is not treated as a static-pressure validation value."
+    ]
+  },
+  "paths": {
+    "geometry_root": "../../Geometry",
+    "results_root": "../../Results"
+  },
+  "geometry": "Nozzle_models/Discovery_files/Snakebite_No6_nozzle_only_sim-1-03.dsco",
+  "stages": [
+    "mesh",
+    "solve",
+    "export",
+    "plot"
+  ],
+  "fluent": {
+    "precision": "double",
+    "dimension": 3,
+    "processor_count": 4,
+    "ui_mode": "no_gui",
+    "start_timeout": 900,
+    "additional_arguments": "-t4"
+  },
+  "meshing": {
+    "workflow_type": "Watertight Geometry",
+    "check_mesh": true,
+    "describe_geometry": {
+      "SetupType": "The geometry consists of only fluid regions with no voids"
+    },
+    "update_boundaries": {
+      "BoundaryLabelTypeMap": {
+        "pressure_inlet": "pressure-inlet",
+        "outlet": "pressure-outlet",
+        "wall.1": "wall",
+        "wall.2": "wall",
+        "wall.3": "wall",
+        "wall.4": "wall",
+        "wall.5": "wall",
+        "wall.6": "wall"
+      }
+    },
+    "local_sizing": [
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_1",
+        "BOIControlType": "Face Size",
+        "BOISize": 0.2,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": [
+          "outlet",
+          "pressure_inlet"
+        ]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_2",
+        "BOIControlType": "Face Size",
+        "BOISize": 0.25,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": [
+          "wall.2",
+          "wall.3",
+          "wall.4",
+          "wall.6"
+        ]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_3",
+        "BOIControlType": "Face Size",
+        "BOISize": 1.5,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": [
+          "wall.1",
+          "wall.5"
+        ]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "BOI1-boi1",
+        "BOIExecution": "Body Of Influence",
+        "BOISize": 0.3,
+        "BOIGrowthRate": 1.25,
+        "BOIFaceLabelList": ["snakebite_no6_nozzle_only_sim-1-03-boi1"]
+      } 
+    ],
+    "surface_mesh": {
+      "MinimumSize": 0.2,
+      "MaximumSize": 4,
+      "GrowthRate": 1.2,
+      "SizeFunction": "Curvature and Proximity",
+      "CurvatureNormalAngle": 18,
+      "NumCellsAcrossGap": 1,
+      "ScopeProximity": "Edges",
+      "SeparateBoundaryZone": "No"
+    },
+    "boundary_layers": [
+      {
+        "AddChild": "yes",
+        "BOIControlName": "smooth-transition_1",
+        "BOIOffsetMethod": "smooth-transition",
+        "BOINumLayers": 10,
+        "BOITransitionRatio": 0.272,
+        "BOIGrowthRate": 1.2,
+        "BOIAddIn": "fluid-regions",
+        "BOIGrowOn": "only-walls"
+      }
+    ],
+    "volume_mesh": {
+      "Solver": "Fluent",
+      "VolumeFill": "poly-hexcore",
+      "BufferLayers": 5,
+      "PeelLayers": 3,
+      "VolumeFillControls": {
+        "HexMinCellLength": 0.075,
+        "HexMaxCellLength": 1
+      },
+      "EnableParallelMeshing": true,
+      "QualityMethod": "Orthogonal",
+      "QualityLimit": 0.05,
+      "UseSizeField": false,
+      "PolyFeatureAngle": 30,
+      "AvoidOctreeTransition": false,
+      "CheckSelfProximity": false,
+      "WritePrismControlFile": false
+    }
+  },
+  "solver": {
+    "input": "mesh",
+    "write_case_data": true,
+    "operations": [
+      {
+        "action": "set",
+        "path": "settings/setup/general/solver/type",
+        "value": "density-based-implicit"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/solver/time",
+        "value": "steady"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/operating_conditions/operating_pressure",
+        "value": 0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/energy",
+        "value": {
+          "enabled": true
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/model",
+        "value": "transition-sst"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/materials/fluid/@air/density/option",
+        "value": "ideal-gas"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/materials/fluid/@air/viscosity/option",
+        "value": "sutherland"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/materials/fluid/@air/viscosity/sutherland/option",
+        "value": "three-coefficient-method"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/materials/fluid/@air/viscosity/sutherland/reference_viscosity",
+        "value": 0.00001716
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/materials/fluid/@air/viscosity/sutherland/reference_temperature",
+        "value": 273.11
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/materials/fluid/@air/viscosity/sutherland/effective_temperature",
+        "value": 110.56
+      },
+      {
+        "action": "set_item",
+        "path": "settings/setup/materials/solid",
+        "name": "Silicon-nitride_custom",
+        "value": {
+          "density": {
+            "option": "constant",
+            "value": 3194.8
+          },
+          "specific_heat": {
+            "option": "constant",
+            "value": 617.71
+          },
+          "thermal_conductivity": {
+            "option": "constant",
+            "value": 32.974
+          }
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/cell_zone_conditions/@enclosure/material",
+        "value": "air"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/momentum/gauge_total_pressure",
+        "value": 689476
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/momentum/supersonic_or_initial_gauge_pressure",
+        "value": 0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/momentum/reference_frame",
+        "value": "Absolute"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/momentum/direction_specification_method",
+        "value": "Normal to Boundary"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/momentum/prevent_reverse_flow",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/thermal/total_temperature",
+        "value": 300
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/turbulence/turbulence_specification",
+        "value": "Intermittency, Intensity and Viscosity Ratio"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/turbulence/intermittency",
+        "value": 1
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/turbulence/turbulent_intensity",
+        "value": 0.05
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_inlet/@pressure_inlet/turbulence/turbulent_viscosity_ratio",
+        "value": 10
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@outlet/momentum/gauge_pressure",
+        "value": 101325
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@outlet/momentum/pressure_profile_multiplier",
+        "value": 1
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.2/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.2/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.3/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.3/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.4/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.4/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.5/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.5/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.6/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.6/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/methods/spatial_discretization/gradient_scheme",
+        "value": "least-square-cell-based"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/methods/warped_face_gradient_correction/enable",
+        "value": true
+      },
+      {
+        "action": "patch",
+        "path": "settings/solution/monitor/residual/equations/@continuity",
+        "value": {
+          "monitor": true,
+          "check_convergence": true,
+          "absolute_criteria": 0.00001
+        }
+      },
+      {
+        "action": "patch",
+        "path": "settings/solution/monitor/residual/equations/@x-velocity",
+        "value": {
+          "monitor": true,
+          "check_convergence": true,
+          "absolute_criteria": 0.00001
+        }
+      },
+      {
+        "action": "patch",
+        "path": "settings/solution/monitor/residual/equations/@y-velocity",
+        "value": {
+          "monitor": true,
+          "check_convergence": true,
+          "absolute_criteria": 0.00001
+        }
+      },
+      {
+        "action": "patch",
+        "path": "settings/solution/monitor/residual/equations/@z-velocity",
+        "value": {
+          "monitor": true,
+          "check_convergence": true,
+          "absolute_criteria": 0.00001
+        }
+      },
+      {
+        "action": "patch",
+        "path": "settings/solution/monitor/residual/equations/@energy",
+        "value": {
+          "monitor": true,
+          "check_convergence": true,
+          "absolute_criteria": 1e-7
+        }
+      },
+      {
+        "action": "patch",
+        "path": "settings/solution/monitor/residual/equations/@k",
+        "value": {
+          "monitor": true,
+          "check_convergence": true,
+          "absolute_criteria": 0.0001
+        }
+      },
+      {
+        "action": "patch",
+        "path": "settings/solution/monitor/residual/equations/@omega",
+        "value": {
+          "monitor": true,
+          "check_convergence": true,
+          "absolute_criteria": 0.0001
+        }
+      },
+      {
+        "action": "set_item",
+        "path": "settings/solution/report_definitions/force",
+        "name": "nozzle-wall-y-force",
+        "value": {
+          "report_type": "force",
+          "report_output_type":"Force",
+          "force_vector": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "zones": [
+            "wall.1",
+            "wall.2",
+            "wall.3",
+            "wall.4",
+            "wall.5",
+            "wall.6"
+          ]
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/initialization/hybrid_initialize"
+      },
+      {
+        "action": "patch",
+        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
+        "value": {
+          "flow": "first-order-upwind",
+          "k": "first-order-upwind",
+          "omega": "first-order-upwind",
+          "intermit": "first-order-upwind",
+          "retheta": "first-order-upwind"
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/initialization/hybrid_initialize"
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/run_calculation/iterate",
+        "kwargs": {
+          "iter_count": 15
+        }
+      }
+    ]
+  },
+  "export": {
+    "reports": [
+      {
+        "name": "nozzle-wall-y-force",
+        "filename": "thrust.csv",
+        "column": "wall_force_y_N"
+      }
+    ],
+    "surfaces": [
+      {
+        "name": "central-line",
+        "kind": "line",
+        "p0": [
+          0,
+          0,
+          0
+        ],
+        "p1": [
+          0,
+          0.346,
+          0
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure"
+        ]
+      },
+      {
+        "name": "nozzle-in",
+        "kind": "line",
+        "p0": [
+          0,
+          0.01,
+          -0.016
+        ],
+        "p1": [
+          0,
+          0.01,
+          0.016
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure"
+        ]
+      },
+      {
+        "name": "nozzle-convergence",
+        "kind": "line",
+        "p0": [
+          0,
+          0.09,
+          -0.01
+        ],
+        "p1": [
+          0,
+          0.09,
+          0.01
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure"
+        ]
+      },
+      {
+        "name": "nozzle-constriction",
+        "kind": "line",
+        "p0": [
+          0,
+          0.095,
+          -0.01
+        ],
+        "p1": [
+          0,
+          0.095,
+          0.01
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure"
+        ]
+      },
+      {
+        "name": "nozzle-throat",
+        "kind": "line",
+        "p0": [
+          0,
+          0.1,
+          -0.01
+        ],
+        "p1": [
+          0,
+          0.1,
+          0.01
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure"
+        ]
+      },
+      {
+        "name": "nozzle-expansion",
+        "kind": "line",
+        "p0": [
+          0,
+          0.25,
+          -0.01
+        ],
+        "p1": [
+          0,
+          0.25,
+          0.01
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure"
+        ]
+      },
+      {
+        "name": "nozzle-exit",
+        "kind": "line",
+        "p0": [
+          0,
+          0.320605,
+          -0.01
+        ],
+        "p1": [
+          0,
+          0.320605,
+          0.01
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure"
+        ]
+      },
+      {
+        "name": "mid-plane",
+        "kind": "plane",
+        "method": "yz-plane",
+        "x": 0,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "density"
+        ]
+      }
+    ],
+    "operations": []
+  },
+  "plotting": {
+    "thrust": {
+      "source": "thrust.csv",
+      "wall_force_column": "wall_force_y_N",
+      "inlet": {
+        "pressure": 689476.0,
+        "diameter": 0.032,
+        "direction": -1.0
+      },
+      "outlet": {
+        "pressure": 101325.0,
+        "diameter": 0.020,
+        "direction": 1.0
+      }
+    },
+    "line_plots": [
+      {
+        "source": "Line_data/central-line.csv",
+        "x": "y-coordinate",
+        "y": [
+          "total-pressure",
+          "dynamic-pressure"
+        ],
+        "x_label": "y-coordinate (m)",
+        "y_label": "Pressure (Pa)",
+        "title": "central-line pressure",
+        "filename": "central-line_pressure.png"
+      },
+      {
+        "source": "Line_data/central-line.csv",
+        "x": "y-coordinate",
+        "y": [
+          "velocity-magnitude"
+        ],
+        "x_label": "y-coordinate (m)",
+        "y_label": "Velocity magnitude (m/s)",
+        "title": "central-line velocity",
+        "filename": "central-line_velocity.png"
+      },
+      {
+        "source": "Line_data/central-line.csv",
+        "x": "y-coordinate",
+        "y": [
+          "total-temperature"
+        ],
+        "x_label": "y-coordinate (m)",
+        "y_label": "Total temperature (K)",
+        "title": "central-line total temperature",
+        "filename": "central-line_total-temperature.png"
+      },
+      {
+        "source": "Line_data/nozzle-throat.csv",
+        "x": "z-coordinate",
+        "y": [
+          "total-pressure",
+          "dynamic-pressure"
+        ],
+        "x_label": "z-coordinate (m)",
+        "y_label": "Pressure (Pa)",
+        "title": "nozzle-throat pressure",
+        "filename": "nozzle-throat_pressure.png"
+      },
+      {
+        "source": "Line_data/nozzle-throat.csv",
+        "x": "z-coordinate",
+        "y": [
+          "velocity-magnitude"
+        ],
+        "x_label": "z-coordinate (m)",
+        "y_label": "Velocity magnitude (m/s)",
+        "title": "nozzle-throat velocity",
+        "filename": "nozzle-throat_velocity.png"
+      },
+      {
+        "source": "Line_data/nozzle-throat.csv",
+        "x": "z-coordinate",
+        "y": [
+          "total-temperature"
+        ],
+        "x_label": "z-coordinate (m)",
+        "y_label": "Total temperature (K)",
+        "title": "nozzle-throat total temperature",
+        "filename": "nozzle-throat_total-temperature.png"
+      }
+    ],
+    "contour_plots": [
+      {
+        "source": "Contour_data/mid-plane.csv",
+        "x": "y-coordinate",
+        "y": "z-coordinate",
+        "value": "total-temperature",
+        "x_label": "Y (m)",
+        "y_label": "Z (m)",
+        "title": "Mid-plane total-temperature",
+        "colorbar_label": "Total temperature (K)",
+        "filename": "mid-plane_total-temperature.png",
+        "levels": 50
+      },
+      {
+        "source": "Contour_data/mid-plane.csv",
+        "x": "y-coordinate",
+        "y": "z-coordinate",
+        "value": "pressure",
+        "x_label": "Y (m)",
+        "y_label": "Z (m)",
+        "title": "Mid-plane pressure",
+        "colorbar_label": "Static pressure (Pa)",
+        "filename": "mid-plane_pressure.png",
+        "levels": 50
+      },
+      {
+        "source": "Contour_data/mid-plane.csv",
+        "x": "y-coordinate",
+        "y": "z-coordinate",
+        "value": "velocity-magnitude",
+        "x_label": "Y (m)",
+        "y_label": "Z (m)",
+        "title": "Mid-plane velocity-magnitude",
+        "colorbar_label": "Velocity magnitude (m/s)",
+        "filename": "mid-plane_velocity-magnitude.png",
+        "levels": 50
+      },
+      {
+        "source": "Contour_data/mid-plane.csv",
+        "x": "y-coordinate",
+        "y": "z-coordinate",
+        "value": "dynamic-pressure",
+        "x_label": "Y (m)",
+        "y_label": "Z (m)",
+        "title": "Mid-plane dynamic-pressure",
+        "colorbar_label": "Dynamic pressure (Pa)",
+        "filename": "mid-plane_dynamic-pressure.png",
+        "levels": 50
+      },
+      {
+        "source": "Contour_data/mid-plane.csv",
+        "x": "y-coordinate",
+        "y": "z-coordinate",
+        "value": "density",
+        "x_label": "Y (m)",
+        "y_label": "Z (m)",
+        "title": "Mid-plane density",
+        "colorbar_label": "Density (kg/m^3)",
+        "filename": "mid-plane_density.png",
+        "levels": 50
+      }
+    ]
+  }
+}
