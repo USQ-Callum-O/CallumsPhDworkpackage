@@ -36,7 +36,7 @@
   },
   "geometry": "Blast_hose/500mm_streight_hose.dsco",
   "inputs": {
-    "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_exit_plane_1700mm.prof"
+    "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_exit_plane_1300mm.prof"
   },
   "stages": [
     "mesh",
