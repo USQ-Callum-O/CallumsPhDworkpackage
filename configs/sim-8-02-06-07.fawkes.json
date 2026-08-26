@@ -23,7 +23,7 @@
     },
     "paths":  {
         "geometry_root":  "../../Geometry",
-        "input_root":  "../../Inputs",
+        "input_root":  "../../",
         "results_root":  "../../Results"
     },
     "geometry":  "Blast_hose/Thomsonvalve+2500mm_streight_hose-2.dsco",
