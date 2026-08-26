@@ -28,7 +28,7 @@
     },
     "geometry":  "Blast_hose/Thomsonvalve+2500mm_streight_hose-2.dsco",
     "inputs":  {        
-        "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/fawkes/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_plane_1300mm.prof"
+        "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_plane_1300mm.prof"
                },
     "stages":  [
         "mesh",
