@@ -25,6 +25,10 @@ class RunArtifacts:
     contour_data: Path
     line_data: Path
     profile_data: Path
+    autosave: Path
+    autosave_base: Path
+    animation: Path
+    animation_frames: Path
     results_plotting: Path
     line_plot: Path
     contour_plot: Path
@@ -42,6 +46,8 @@ class RunArtifacts:
         category_dir = CATEGORY_DIRECTORIES[category]
         run_root = results_root / category_dir / run_name
         case_and_data = run_root / "Case_and_data"
+        autosave = case_and_data / "Autosave"
+        animation = run_root / "Animation"
         data_export = run_root / "Data_export"
         results_plotting = run_root / "Results_plotting"
         case_data_base = case_and_data / run_name
@@ -53,6 +59,10 @@ class RunArtifacts:
             contour_data=data_export / "Contour_data",
             line_data=data_export / "Line_data",
             profile_data=data_export / "Profile_data",
+            autosave=autosave,
+            autosave_base=autosave / run_name,
+            animation=animation,
+            animation_frames=animation / "Frames",
             results_plotting=results_plotting,
             line_plot=results_plotting / "Line_plot",
             contour_plot=results_plotting / "Contour_plot",
@@ -70,6 +80,8 @@ class RunArtifacts:
             self.contour_data,
             self.line_data,
             self.profile_data,
+            self.autosave,
+            self.animation_frames,
             self.line_plot,
             self.contour_plot,
         ):

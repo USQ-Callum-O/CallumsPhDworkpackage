@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import math
 import re
 from typing import Any, Mapping
 
@@ -104,103 +103,16 @@ def _contour_plot(
     figure.savefig(artifacts.contour_plot / _filename(spec.get("filename")), dpi=200)
     plt.close(figure)
 
-def _calculate_thrust(
-    spec: Mapping[str, Any],
-    artifacts: RunArtifacts,
-    pd: Any,
-) -> None:
-    """Calculate nozzle thrust from wall force and pressure end loads."""
-
-    source = _source_path(artifacts, str(spec["source"]))
-    frame = _frame(pd, source)
-
-    wall_force_column = str(spec["wall_force_column"])
-
-    if wall_force_column not in frame.columns:
-        raise ConfigError(
-            f"thrust wall-force column not found: {wall_force_column!r}"
-        )
-
-    if frame.empty:
-        raise ConfigError("thrust source contains no data")
-
-    wall_force_y = float(frame.iloc[0][wall_force_column])
-
-    inlet = spec["inlet"]
-    outlet = spec["outlet"]
-
-    inlet_pressure = float(inlet["pressure"])
-    inlet_diameter = float(inlet["diameter"])
-    inlet_direction = float(inlet["direction"])
-
-    outlet_pressure = float(outlet["pressure"])
-    outlet_diameter = float(outlet["diameter"])
-    outlet_direction = float(outlet["direction"])
-
-    inlet_area = math.pi * (inlet_diameter / 2.0) ** 2
-    outlet_area = math.pi * (outlet_diameter / 2.0) ** 2
-
-    inlet_force_y = (
-        inlet_direction
-        * inlet_pressure
-        * inlet_area
-    )
-
-    outlet_force_y = (
-        outlet_direction
-        * outlet_pressure
-        * outlet_area
-    )
-
-    thrust_y = (
-        wall_force_y
-        + inlet_force_y
-        + outlet_force_y
-    )
-
-    frame["inlet_pressure_Pa"] = inlet_pressure
-    frame["inlet_diameter_m"] = inlet_diameter
-    frame["inlet_area_m2"] = inlet_area
-    frame["inlet_force_y_N"] = inlet_force_y
-
-    frame["outlet_pressure_Pa"] = outlet_pressure
-    frame["outlet_diameter_m"] = outlet_diameter
-    frame["outlet_area_m2"] = outlet_area
-    frame["outlet_force_y_N"] = outlet_force_y
-
-    frame["thrust_y_N"] = thrust_y
-
-    frame.to_csv(source, index=False)
-
-    print("")
-    print("Nozzle thrust calculation")
-    print("-------------------------")
-    print(f"Wall force Y         : {wall_force_y:.6f} N")
-    print(f"Inlet pressure force : {inlet_force_y:.6f} N")
-    print(f"Outlet pressure force: {outlet_force_y:.6f} N")
-    print(f"Net thrust Y         : {thrust_y:.6f} N")
-    print(f"Updated CSV          : {source}")
-    print("")
 
 def run_plotting(config: SimulationConfig, artifacts: RunArtifacts, launcher: Any = None) -> None:
     """Generate all configured line and contour plots without a display server."""
 
     del launcher
-    thrust = config.plotting.get("thrust")
     line_plots = config.plotting.get("line_plots", [])
     contour_plots = config.plotting.get("contour_plots", [])
     if not isinstance(line_plots, list) or not isinstance(contour_plots, list):
         raise ConfigError("plotting.line_plots and plotting.contour_plots must be arrays")
     plt, np, pd = _libraries()
-    if thrust is not None:
-        if not isinstance(thrust, Mapping):
-            raise ConfigError("plotting.thrust must be an object")
-
-        _calculate_thrust(
-            thrust,
-            artifacts,
-            pd,
-        )
     for spec in line_plots:
         _line_plot(spec, artifacts, plt, pd)
     for spec in contour_plots:
