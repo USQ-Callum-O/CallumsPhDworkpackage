@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#PBS -N sim-8-02-06.2-07
+#PBS -N sim-8-01-05-06
 #PBS -l select=1:ncpus=8:mem=128gb
 #PBS -l walltime=24:00:00
 #PBS -l software=ansys
@@ -34,7 +34,7 @@ export I_MPI_FABRICS=shm
 # Plotting must use a non-interactive backend on the compute node.
 export MPLBACKEND=Agg
 
-CONFIG="${CONFIG:-configs/sim-8-02-06.2-07.fawkes.json}"
+CONFIG="${CONFIG:-configs/sim-8-01-05-06.fawkes.json}"
 STAGES="${STAGES:-solve+export+plot}"
 
 IFS='+' read -r -a STAGE_ARRAY <<< "$STAGES"
@@ -68,7 +68,7 @@ callums-sim run \
 echo
 echo "Generated export files:"
 find \
-    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-8-02-06.2-07/Data_export" \
+    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-8-01-05-06/Data_export" \
     -type f \
     -printf '%p %s bytes\n' \
     | sort
@@ -76,7 +76,7 @@ find \
 echo
 echo "Generated plot files:"
 find \
-    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-8-02-06.2-07/Results_plotting" \
+    "$CALLUMS_RESULTS_ROOT/Nozzle_simulations/sim-8-01-05-06/Results_plotting" \
     -type f \
     -printf '%p %s bytes\n' \
     | sort

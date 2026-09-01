@@ -14,6 +14,7 @@ from ..operations import apply_operations
 
 
 SAFE_ANIMATION_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
+ANIMATION_FRAME_EXTENSIONS = {"jpeg", "jpg", "png", "tif", "tiff"}
 
 
 def _require_file(path: Path, description: str) -> None:
@@ -147,9 +148,15 @@ def _animation_output_specs(solver: Mapping[str, Any]) -> list[Mapping[str, Any]
         if not isinstance(output, Mapping):
             raise ConfigError(f"{location} must be an object")
         prefix = str(output.get("frame_prefix", ""))
+        extension = str(output.get("frame_extension", "png")).lower().lstrip(".")
         filename = str(output.get("filename", ""))
         if not SAFE_ANIMATION_NAME.fullmatch(prefix):
             raise ConfigError(f"Invalid {location}.frame_prefix: {prefix!r}")
+        if extension not in ANIMATION_FRAME_EXTENSIONS:
+            raise ConfigError(
+                f"{location}.frame_extension must be one of "
+                f"{sorted(ANIMATION_FRAME_EXTENSIONS)}"
+            )
         if not SAFE_ANIMATION_NAME.fullmatch(filename) or not filename.endswith(".gif"):
             raise ConfigError(f"Invalid {location}.filename: {filename!r}")
         if filename in filenames:
@@ -189,10 +196,17 @@ def _write_animation_outputs(
     written: list[Path] = []
     for output in outputs:
         prefix = str(output.get("frame_prefix", ""))
+        extension = str(output.get("frame_extension", "png")).lower().lstrip(".")
         filename = str(output.get("filename", ""))
         duration = output.get("frame_duration_seconds", 0.1)
         frames = sorted(
-            artifacts.animation_frames.glob(f"{prefix}*.png"),
+            (
+                path
+                for path in artifacts.animation_frames.iterdir()
+                if path.is_file()
+                and path.name.startswith(prefix)
+                and path.suffix.lower() == f".{extension}"
+            ),
             key=_natural_name,
         )
         if not frames:
