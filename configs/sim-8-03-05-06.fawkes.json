@@ -3,7 +3,7 @@
   "simulation": {
     "id": "sim-8",
     "category": "hose",
-    "versions": {"mesh": "03", "solver": "05","post": "7"}
+    "versions": {"mesh": "03", "solver": "05","post": "06"}
   },
   "metadata": {
     "purpose": "Simulation 8.05 dry-air carrier-flow migrationit. This is the fine mesh refinement simulation for tessting the pressure loss mesh refinement",
