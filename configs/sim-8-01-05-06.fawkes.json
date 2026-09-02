@@ -39,12 +39,13 @@
     "export",
     "plot"
   ],
-  "fluent": {
-    "precision": "double",
-    "dimension": 3,
-    "processor_count": null,
-    "ui_mode": "no_gui",
-    "start_timeout": 600
+  "fluent":  {
+      "precision":  "double",
+      "dimension":  3,
+      "processor_count":  8,
+      "ui_mode":  "no_gui",
+      "start_timeout":  600,
+      "additional_arguments": "-t8"
   },
   "meshing": {
     "workflow_type": "Watertight Geometry",
