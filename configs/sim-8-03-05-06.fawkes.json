@@ -6,7 +6,7 @@
     "versions": {"mesh": "03", "solver": "05","post": "7"}
   },
   "metadata": {
-    "purpose": "Simulation 8.05 dry-air carrier-flow migrationit. This is the medium mesh refinement simulation for tessting the pressure loss mesh refinement",
+    "purpose": "Simulation 8.05 dry-air carrier-flow migrationit. This is the fine mesh refinement simulation for tessting the pressure loss mesh refinement",
     "migrated_from_config": "configs/sim-8-05_config.json",
     "legacy_meshing_script": "PyFluent/Meshing/Thomsonvalve_Sim-8-01-meshing.py",
     "legacy_solver_script": "PyFluent/Thompson_sim-2_code/Thomsonvalve_Sim-8-05-solver.py",
@@ -66,8 +66,8 @@
         "AddChild": "yes",
         "BOIControlName": "facesize_1",
         "BOIControlType": "Face Size",
-        "BOISize": 0.6,
-        "BOIGrowthRate": 1.2,
+        "BOISize": 0.2,
+        "BOIGrowthRate": 1.1,
         "BOISelectorType": "Labels",
         "BOIFaceLabelList": [
           "mass-flow-inlet",
@@ -78,8 +78,8 @@
         "AddChild": "yes",
         "BOIControlName": "facesize_2",
         "BOIControlType": "Face Size",
-        "BOISize": 1,
-        "BOIGrowthRate": 1.2,
+        "BOISize": 0.4,
+        "BOIGrowthRate": 1.1,
         "BOISelectorType": "Labels",
         "BOIFaceLabelList": [
           "wall.1.1",
@@ -89,9 +89,9 @@
       }
     ],
     "surface_mesh": {
-      "MinimumSize": 0.05,
-      "MaximumSize": 8,
-      "GrowthRate": 1.2,
+      "MinimumSize": 0.01,
+      "MaximumSize": 6,
+      "GrowthRate": 1.1,
       "SizeFunction": "Curvature and Proximity",
       "CurvatureNormalAngle": 18,
       "NumCellsAcrossGap": 1,
@@ -112,14 +112,14 @@
     "boundary_layers": [
       {
         "BLControlName": "uniform_1",
-        "FirstHeight": 0.005,
+        "FirstHeight": 0.001,
         "LocalPrismPreferences": {
           "Continuous": "Continuous",
           "ShowLocalPrismPreferences": true
         },
-        "NumberOfLayers": 15,
+        "NumberOfLayers": 20,
         "OffsetMethodType": "uniform",
-        "Rate": 1.4,
+        "Rate": 1.2,
         "_operation_kwargs": {
           "DeferUpdate": false
         }
@@ -131,7 +131,7 @@
       "BufferLayers": 5,
       "PeelLayers": 3,
       "VolumeFillControls": {
-        "HexMinCellLength": 0.01,
+        "HexMinCellLength": 0.002,
         "HexMaxCellLength": 10
       },
       "VolumeMeshPreferences": {
