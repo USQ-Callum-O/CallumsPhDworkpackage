@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -11,10 +10,6 @@ from ..artifacts import RunArtifacts
 from ..config import ConfigError, SimulationConfig
 from ..fluent import managed_session
 from ..operations import apply_operations
-
-
-SAFE_ANIMATION_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
-ANIMATION_FRAME_EXTENSIONS = {"jpeg", "jpg", "png", "tif", "tiff"}
 
 
 def _require_file(path: Path, description: str) -> None:
@@ -47,10 +42,8 @@ def run_solver(
     operations = solver.get("operations")
     if not isinstance(operations, list) or not operations:
         raise ConfigError("solver.operations must be a non-empty array")
-    # Validate output settings before starting Fluent. A typo in a GIF name or
-    # autosave frequency should not be discovered after a long HPC calculation.
+    # Validate autosave settings before starting Fluent.
     _autosave_values(solver)
-    _animation_output_specs(solver)
     with managed_session("solver", config.launch, launcher) as session:
         _read_input(session, str(solver.get("input", "mesh")), artifacts)
         _configure_autosave(session, solver, artifacts)
@@ -64,7 +57,6 @@ def run_solver(
             session.settings.file.write_case_data(
                 file_name=str(artifacts.case_data_base)
             )
-    _write_animation_outputs(solver, artifacts)
 
 
 def _positive_int(value: Any, setting: str) -> int:
@@ -128,100 +120,3 @@ def _configure_autosave(
         suffix_settings.set_state(suffix)
         auto_save.number_of_digits.set_state(digits)
 
-
-def _natural_name(path: Path) -> list[int | str]:
-    return [
-        int(part) if part.isdigit() else part.lower()
-        for part in re.split(r"(\d+)", path.name)
-    ]
-
-
-def _animation_output_specs(solver: Mapping[str, Any]) -> list[Mapping[str, Any]]:
-    outputs = solver.get("animation_outputs", [])
-    if not isinstance(outputs, list):
-        raise ConfigError("solver.animation_outputs must be an array")
-
-    filenames: set[str] = set()
-    validated: list[Mapping[str, Any]] = []
-    for index, output in enumerate(outputs):
-        location = f"solver.animation_outputs[{index}]"
-        if not isinstance(output, Mapping):
-            raise ConfigError(f"{location} must be an object")
-        prefix = str(output.get("frame_prefix", ""))
-        extension = str(output.get("frame_extension", "png")).lower().lstrip(".")
-        filename = str(output.get("filename", ""))
-        if not SAFE_ANIMATION_NAME.fullmatch(prefix):
-            raise ConfigError(f"Invalid {location}.frame_prefix: {prefix!r}")
-        if extension not in ANIMATION_FRAME_EXTENSIONS:
-            raise ConfigError(
-                f"{location}.frame_extension must be one of "
-                f"{sorted(ANIMATION_FRAME_EXTENSIONS)}"
-            )
-        if not SAFE_ANIMATION_NAME.fullmatch(filename) or not filename.endswith(".gif"):
-            raise ConfigError(f"Invalid {location}.filename: {filename!r}")
-        if filename in filenames:
-            raise ConfigError(f"Duplicate animation filename: {filename!r}")
-        filenames.add(filename)
-
-        duration = output.get("frame_duration_seconds", 0.1)
-        if (
-            isinstance(duration, bool)
-            or not isinstance(duration, (int, float))
-            or duration <= 0
-        ):
-            raise ConfigError(f"{location}.frame_duration_seconds must be positive")
-        loop = output.get("loop", 0)
-        if isinstance(loop, bool) or not isinstance(loop, int) or loop < 0:
-            raise ConfigError(f"{location}.loop must be a non-negative integer")
-        validated.append(output)
-    return validated
-
-
-def _write_animation_outputs(
-    solver: Mapping[str, Any],
-    artifacts: RunArtifacts,
-    imageio: Any = None,
-) -> list[Path]:
-    outputs = _animation_output_specs(solver)
-    if not outputs:
-        return []
-    if imageio is None:
-        try:
-            import imageio.v2 as imageio
-        except ImportError as exc:
-            raise ConfigError(
-                "Animation output requires the optional 'plot' dependency"
-            ) from exc
-
-    written: list[Path] = []
-    for output in outputs:
-        prefix = str(output.get("frame_prefix", ""))
-        extension = str(output.get("frame_extension", "png")).lower().lstrip(".")
-        filename = str(output.get("filename", ""))
-        duration = output.get("frame_duration_seconds", 0.1)
-        frames = sorted(
-            (
-                path
-                for path in artifacts.animation_frames.iterdir()
-                if path.is_file()
-                and path.name.startswith(prefix)
-                and path.suffix.lower() == f".{extension}"
-            ),
-            key=_natural_name,
-        )
-        if not frames:
-            raise FileNotFoundError(
-                f"No animation frames matched {prefix!r} in "
-                f"{artifacts.animation_frames}"
-            )
-        destination = artifacts.animation / filename
-        with imageio.get_writer(
-            destination,
-            mode="I",
-            duration=float(duration),
-            loop=output.get("loop", 0),
-        ) as writer:
-            for frame in frames:
-                writer.append_data(imageio.imread(frame))
-        written.append(destination)
-    return written
