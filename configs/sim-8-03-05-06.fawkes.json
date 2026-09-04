@@ -489,7 +489,7 @@
       {
         "action": "set",
         "path": "settings/solution/run_calculation/transient_controls/time_step_count",
-        "value": 10
+        "value": 400
       },
       {
         "action": "set",
