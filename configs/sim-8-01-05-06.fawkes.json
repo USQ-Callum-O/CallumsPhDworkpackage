@@ -999,7 +999,7 @@
         "surface": "pressure_tap_end_10mm",
         "axial_position_m": 2.49,
         "field": "pressure",
-        "report_type": "area-weighted-avg",
+        "report_type": "surface-areaavg",
         "units": "Pa"
       }
     ]
