@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+from numbers import Real
 from pathlib import Path
 import re
 from typing import Any, Mapping
@@ -94,6 +96,99 @@ def _write_profile(
     )
 
 
+def _report_value(raw: Any, report_name: str) -> float:
+    """Extract a scalar from Fluent's report-definitions.compute response."""
+
+    if isinstance(raw, Mapping):
+        if report_name in raw:
+            return _report_value(raw[report_name], report_name)
+        for value in raw.values():
+            try:
+                return _report_value(value, report_name)
+            except ConfigError:
+                continue
+    elif isinstance(raw, (list, tuple)):
+        for value in raw:
+            try:
+                return _report_value(value, report_name)
+            except ConfigError:
+                continue
+    elif isinstance(raw, Real) and not isinstance(raw, bool):
+        return float(raw)
+    raise ConfigError(
+        f"Fluent returned no numeric value for surface report {report_name!r}: {raw!r}"
+    )
+
+
+def _write_surface_reports(
+    session: Any,
+    artifacts: RunArtifacts,
+    raw_reports: Any,
+) -> None:
+    if raw_reports is None:
+        return
+    if not isinstance(raw_reports, list):
+        raise ConfigError("export.surface_reports must be an array")
+    if not raw_reports:
+        return
+
+    definitions = session.settings.solution.report_definitions
+    rows: list[dict[str, Any]] = []
+    for index, spec in enumerate(raw_reports, start=1):
+        if not isinstance(spec, Mapping):
+            raise ConfigError(f"export surface report {index} must be an object")
+        name = str(spec.get("name", ""))
+        surface_name = str(spec.get("surface", ""))
+        field = str(spec.get("field", "pressure"))
+        report_type = str(spec.get("report_type", "area-weighted-avg"))
+        if not SAFE_EXPORT_NAME.fullmatch(name):
+            raise ConfigError(f"invalid surface report name: {name!r}")
+        if not SAFE_EXPORT_NAME.fullmatch(surface_name):
+            raise ConfigError(
+                f"invalid surface name for report {name!r}: {surface_name!r}"
+            )
+        report = _ensure_named(definitions.surface, name)
+        report.report_type = report_type
+        report.field = field
+        report.surface_names = [surface_name]
+        result = definitions.compute(report_defs=[name])
+        rows.append(
+            {
+                "report_name": name,
+                "surface_name": surface_name,
+                "axial_position_or_span_m": float(spec["axial_position_m"]),
+                "field": field,
+                "report_type": report_type,
+                "value": _report_value(result, name),
+                "units": str(spec.get("units", "Pa")),
+            }
+        )
+
+    if len(rows) == 2:
+        rows.append(
+            {
+                "report_name": "pressure_drop_start_minus_end",
+                "surface_name": (
+                    f"{rows[0]['surface_name']} - {rows[1]['surface_name']}"
+                ),
+                "axial_position_or_span_m": (
+                    rows[1]["axial_position_or_span_m"]
+                    - rows[0]["axial_position_or_span_m"]
+                ),
+                "field": "pressure",
+                "report_type": "derived-difference",
+                "value": rows[0]["value"] - rows[1]["value"],
+                "units": "Pa",
+            }
+        )
+
+    output = artifacts.data_export / "pressure-loss.csv"
+    with output.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def run_export(
     config: SimulationConfig,
     artifacts: RunArtifacts,
@@ -102,9 +197,16 @@ def run_export(
     """Load case/data and export configured surfaces as Fluent ASCII CSV."""
 
     exports = config.export.get("surfaces", [])
+    surface_reports = config.export.get("surface_reports", [])
     operations = config.export.get("operations", [])
-    if not isinstance(exports, list) or not isinstance(operations, list):
-        raise ConfigError("export.surfaces and export.operations must be arrays")
+    if (
+        not isinstance(exports, list)
+        or not isinstance(surface_reports, list)
+        or not isinstance(operations, list)
+    ):
+        raise ConfigError(
+            "export.surfaces, export.surface_reports, and export.operations must be arrays"
+        )
     if not artifacts.case.is_file() or not artifacts.data.is_file():
         raise FileNotFoundError(
             f"Export requires both case and data files: {artifacts.case}, {artifacts.data}"
@@ -133,3 +235,4 @@ def run_export(
                 cell_func_domain=list(fields),
             )
             _write_profile(session, artifacts, surface_name, spec.get("profile"))
+        _write_surface_reports(session, artifacts, surface_reports)

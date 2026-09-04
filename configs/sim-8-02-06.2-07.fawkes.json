@@ -140,15 +140,6 @@
             "suffix":  "time-step",
             "digits":  5
         },
-        "animation_outputs":  [
-            {
-                "frame_prefix":  "flow_development_animation",
-                "frame_extension":  "tiff",
-                "filename":  "sim-8-02-06-07-flow-development.gif",
-                "frame_duration_seconds":  0.1,
-                "loop":  0
-            }
-        ],
         "operations":  [
             {
                 "action":  "set",
@@ -1085,6 +1076,50 @@
                     "y-velocity",
                     "z-velocity"
                 ]
+            },
+            {
+                "name":  "pressure_tap_start_10mm",
+                "kind":  "plane",
+                "method":  "xy-plane",
+                "z":  0.01,
+                "destination":  "contour",
+                "fields":  [
+                    "x-coordinate",
+                    "y-coordinate",
+                    "z-coordinate",
+                    "pressure"
+                ]
+            },
+            {
+                "name":  "pressure_tap_end_10mm",
+                "kind":  "plane",
+                "method":  "xy-plane",
+                "z":  2.49,
+                "destination":  "contour",
+                "fields":  [
+                    "x-coordinate",
+                    "y-coordinate",
+                    "z-coordinate",
+                    "pressure"
+                ]
+            }
+        ],
+        "surface_reports":  [
+            {
+                "name":  "pressure_start_10mm",
+                "surface":  "pressure_tap_start_10mm",
+                "axial_position_m":  0.01,
+                "field":  "pressure",
+                "report_type":  "area-weighted-avg",
+                "units":  "Pa"
+            },
+            {
+                "name":  "pressure_end_10mm",
+                "surface":  "pressure_tap_end_10mm",
+                "axial_position_m":  2.49,
+                "field":  "pressure",
+                "report_type":  "area-weighted-avg",
+                "units":  "Pa"
             }
         ]
     },
