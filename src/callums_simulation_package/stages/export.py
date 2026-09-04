@@ -1,4 +1,4 @@
-"""Export reusable line, plane, and existing-surface data from Fluent."""
+"""Export surface data and direct Fluent surface-integral results."""
 
 from __future__ import annotations
 
@@ -96,78 +96,158 @@ def _write_profile(
     )
 
 
-def _report_value(raw: Any, report_name: str) -> float:
-    """Extract a scalar from Fluent's report-definitions.compute response."""
+def _report_value(raw: Any, result_key: str) -> float:
+    """Extract a scalar from Fluent's surface-integral query response."""
 
     if isinstance(raw, Mapping):
-        if report_name in raw:
-            return _report_value(raw[report_name], report_name)
+        if result_key in raw:
+            return _report_value(raw[result_key], result_key)
         for value in raw.values():
             try:
-                return _report_value(value, report_name)
+                return _report_value(value, result_key)
             except ConfigError:
                 continue
     elif isinstance(raw, (list, tuple)):
         for value in raw:
             try:
-                return _report_value(value, report_name)
+                return _report_value(value, result_key)
             except ConfigError:
                 continue
     elif isinstance(raw, Real) and not isinstance(raw, bool):
         return float(raw)
     raise ConfigError(
-        f"Fluent returned no numeric value for surface report {report_name!r}: {raw!r}"
+        f"Fluent returned no numeric value for surface integral {result_key!r}: {raw!r}"
     )
 
 
-def _write_surface_reports(
+def _difference_fields(report_value: float, integral_value: float) -> dict[str, Any]:
+    difference = report_value - integral_value
+    relative = (
+        abs(difference) / abs(integral_value) * 100.0
+        if integral_value != 0.0
+        else None
+    )
+    return {
+        "surface_report_value": report_value,
+        "surface_integral_value": integral_value,
+        "report_minus_integral": difference,
+        "absolute_difference": abs(difference),
+        "relative_difference_percent": relative,
+    }
+
+
+def _write_pressure_method_comparison(
     session: Any,
     artifacts: RunArtifacts,
     raw_reports: Any,
+    raw_integrals: Any,
 ) -> None:
     if raw_reports is None:
-        return
+        raw_reports = []
+    if raw_integrals is None:
+        raw_integrals = []
     if not isinstance(raw_reports, list):
         raise ConfigError("export.surface_reports must be an array")
-    if not raw_reports:
+    if not isinstance(raw_integrals, list):
+        raise ConfigError("export.surface_integrals must be an array")
+    if not raw_reports and not raw_integrals:
         return
+    if not raw_reports or not raw_integrals:
+        raise ConfigError(
+            "pressure comparison requires both export.surface_reports and "
+            "export.surface_integrals"
+        )
 
     definitions = session.settings.solution.report_definitions
-    rows: list[dict[str, Any]] = []
+    surface_integrals = session.settings.results.report.surface_integrals
+    report_values: dict[str, float] = {}
+    report_specs: dict[str, Mapping[str, Any]] = {}
     for index, spec in enumerate(raw_reports, start=1):
         if not isinstance(spec, Mapping):
             raise ConfigError(f"export surface report {index} must be an object")
         name = str(spec.get("name", ""))
         surface_name = str(spec.get("surface", ""))
         field = str(spec.get("field", "pressure"))
-        report_type = str(spec.get("report_type", "area-weighted-avg"))
+        report_type = str(spec.get("report_type", "surface-areaavg"))
         if not SAFE_EXPORT_NAME.fullmatch(name):
             raise ConfigError(f"invalid surface report name: {name!r}")
-        if not SAFE_EXPORT_NAME.fullmatch(surface_name):
+        if name in report_values:
+            raise ConfigError(f"duplicate surface report name: {name!r}")
+        if report_type != "surface-areaavg":
             raise ConfigError(
-                f"invalid surface name for report {name!r}: {surface_name!r}"
+                f"unsupported surface report type for {name!r}: {report_type!r}"
             )
         report = _ensure_named(definitions.surface, name)
         report.report_type = report_type
         report.field = field
         report.surface_names = [surface_name]
         result = definitions.compute(report_defs=[name])
+        report_values[name] = _report_value(result, name)
+        report_specs[name] = spec
+
+    integral_values: dict[str, float] = {}
+    integral_specs: dict[str, Mapping[str, Any]] = {}
+    for index, spec in enumerate(raw_integrals, start=1):
+        if not isinstance(spec, Mapping):
+            raise ConfigError(f"export surface integral {index} must be an object")
+        name = str(spec.get("name", ""))
+        surface_name = str(spec.get("surface", ""))
+        field = str(spec.get("field", "pressure"))
+        integral_type = str(spec.get("integral_type", "area-weighted-average"))
+        if not SAFE_EXPORT_NAME.fullmatch(name):
+            raise ConfigError(f"invalid surface integral name: {name!r}")
+        if name in integral_values:
+            raise ConfigError(f"duplicate surface integral name: {name!r}")
+        if not SAFE_EXPORT_NAME.fullmatch(surface_name):
+            raise ConfigError(
+                f"invalid surface name for integral {name!r}: {surface_name!r}"
+            )
+        if integral_type != "area-weighted-average":
+            raise ConfigError(
+                f"unsupported surface integral type for {name!r}: {integral_type!r}"
+            )
+        result = surface_integrals.get_area_weighted_avg(
+            report_of=field,
+            surface_names=[surface_name],
+        )
+        integral_values[name] = _report_value(result, surface_name)
+        integral_specs[name] = spec
+
+    if report_values.keys() != integral_values.keys():
+        raise ConfigError(
+            "surface report and surface integral names must match exactly"
+        )
+
+    rows: list[dict[str, Any]] = []
+    for name, integral_value in integral_values.items():
+        report_spec = report_specs[name]
+        integral_spec = integral_specs[name]
+        for key in ("surface", "field", "axial_position_m", "units"):
+            if report_spec.get(key) != integral_spec.get(key):
+                raise ConfigError(
+                    f"surface report and integral {name!r} disagree on {key!r}"
+                )
         rows.append(
             {
-                "report_name": name,
-                "surface_name": surface_name,
-                "axial_position_or_span_m": float(spec["axial_position_m"]),
-                "field": field,
-                "report_type": report_type,
-                "value": _report_value(result, name),
-                "units": str(spec.get("units", "Pa")),
+                "measurement_name": name,
+                "surface_name": str(integral_spec["surface"]),
+                "axial_position_or_span_m": float(
+                    integral_spec["axial_position_m"]
+                ),
+                "field": str(integral_spec.get("field", "pressure")),
+                **_difference_fields(report_values[name], integral_value),
+                "units": str(integral_spec.get("units", "Pa")),
             }
         )
 
     if len(rows) == 2:
+        report_drop = rows[0]["surface_report_value"] - rows[1]["surface_report_value"]
+        integral_drop = (
+            rows[0]["surface_integral_value"] - rows[1]["surface_integral_value"]
+        )
         rows.append(
             {
-                "report_name": "pressure_drop_start_minus_end",
+                "measurement_name": "pressure_drop_start_minus_end",
                 "surface_name": (
                     f"{rows[0]['surface_name']} - {rows[1]['surface_name']}"
                 ),
@@ -176,8 +256,7 @@ def _write_surface_reports(
                     - rows[0]["axial_position_or_span_m"]
                 ),
                 "field": "pressure",
-                "report_type": "derived-difference",
-                "value": rows[0]["value"] - rows[1]["value"],
+                **_difference_fields(report_drop, integral_drop),
                 "units": "Pa",
             }
         )
@@ -198,14 +277,17 @@ def run_export(
 
     exports = config.export.get("surfaces", [])
     surface_reports = config.export.get("surface_reports", [])
+    surface_integrals = config.export.get("surface_integrals", [])
     operations = config.export.get("operations", [])
     if (
         not isinstance(exports, list)
         or not isinstance(surface_reports, list)
+        or not isinstance(surface_integrals, list)
         or not isinstance(operations, list)
     ):
         raise ConfigError(
-            "export.surfaces, export.surface_reports, and export.operations must be arrays"
+            "export.surfaces, export.surface_reports, export.surface_integrals, "
+            "and export.operations must be arrays"
         )
     if not artifacts.case.is_file() or not artifacts.data.is_file():
         raise FileNotFoundError(
@@ -235,4 +317,9 @@ def run_export(
                 cell_func_domain=list(fields),
             )
             _write_profile(session, artifacts, surface_name, spec.get("profile"))
-        _write_surface_reports(session, artifacts, surface_reports)
+        _write_pressure_method_comparison(
+            session,
+            artifacts,
+            surface_reports,
+            surface_integrals,
+        )

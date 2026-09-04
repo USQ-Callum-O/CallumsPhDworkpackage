@@ -991,7 +991,7 @@
         "surface": "pressure_tap_start_10mm",
         "axial_position_m": 0.01,
         "field": "pressure",
-        "report_type": "area-weighted-avg",
+        "report_type": "surface-areaavg",
         "units": "Pa"
       },
       {
@@ -1000,6 +1000,24 @@
         "axial_position_m": 2.49,
         "field": "pressure",
         "report_type": "surface-areaavg",
+        "units": "Pa"
+      }
+    ],
+    "surface_integrals": [
+      {
+        "name": "pressure_start_10mm",
+        "surface": "pressure_tap_start_10mm",
+        "axial_position_m": 0.01,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_10mm",
+        "surface": "pressure_tap_end_10mm",
+        "axial_position_m": 2.49,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
         "units": "Pa"
       }
     ]
