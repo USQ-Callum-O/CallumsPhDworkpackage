@@ -1280,7 +1280,20 @@
         "integral_type": "area-weighted-average",
         "units": "Pa"
       }
-    ]
+    ],
+    "flow_summary": {
+      "start_surface": "pressure_tap_start_10mm",
+      "end_surface": "pressure_tap_end_10mm",
+      "start_axial_position_m": 0.01,
+      "end_axial_position_m": 2.49,
+      "hydraulic_diameter_m": 0.032,
+      "pressure_field": "pressure",
+      "density_field": "density",
+      "velocity_field": "z-velocity",
+      "dynamic_viscosity_pa_s": 0.000018606542261347473,
+      "cell_count": null,
+      "output_filename": "flow-summary.csv"
+    }
   },
   "plotting": {
     "line_plots": [

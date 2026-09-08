@@ -268,6 +268,130 @@ def _write_pressure_method_comparison(
         writer.writerows(rows)
 
 
+def _area_weighted_average(
+    surface_integrals: Any,
+    field: str,
+    surface_name: str,
+) -> float:
+    """Return one Fluent area-weighted average as a scalar."""
+
+    result = surface_integrals.get_area_weighted_avg(
+        report_of=field,
+        surface_names=[surface_name],
+    )
+    return _report_value(result, surface_name)
+
+
+def _write_flow_summary(
+    session: Any,
+    config: SimulationConfig,
+    artifacts: RunArtifacts,
+    raw: Any,
+) -> None:
+    """Export bulk properties, Reynolds number, and Darcy friction factor."""
+
+    if raw is None:
+        return
+    if not isinstance(raw, Mapping):
+        raise ConfigError("export.flow_summary must be an object")
+
+    start_surface = str(raw.get("start_surface", ""))
+    end_surface = str(raw.get("end_surface", ""))
+    for label, surface_name in (
+        ("start_surface", start_surface),
+        ("end_surface", end_surface),
+    ):
+        if not SAFE_EXPORT_NAME.fullmatch(surface_name):
+            raise ConfigError(f"invalid export.flow_summary.{label}: {surface_name!r}")
+
+    start_position = float(raw["start_axial_position_m"])
+    end_position = float(raw["end_axial_position_m"])
+    length = end_position - start_position
+    diameter = float(raw["hydraulic_diameter_m"])
+    viscosity = float(raw["dynamic_viscosity_pa_s"])
+    if length <= 0.0:
+        raise ConfigError("flow-summary end position must exceed start position")
+    if diameter <= 0.0:
+        raise ConfigError("flow-summary hydraulic diameter must be positive")
+    if viscosity <= 0.0:
+        raise ConfigError("flow-summary dynamic viscosity must be positive")
+
+    filename = str(raw.get("output_filename", "flow-summary.csv"))
+    if not SAFE_EXPORT_NAME.fullmatch(filename) or Path(filename).suffix.lower() != ".csv":
+        raise ConfigError(f"invalid flow-summary filename: {filename!r}")
+
+    pressure_field = str(raw.get("pressure_field", "pressure"))
+    density_field = str(raw.get("density_field", "density"))
+    velocity_field = str(raw.get("velocity_field", "z-velocity"))
+    surface_integrals = session.settings.results.report.surface_integrals
+
+    pressure_start = _area_weighted_average(
+        surface_integrals, pressure_field, start_surface
+    )
+    pressure_end = _area_weighted_average(
+        surface_integrals, pressure_field, end_surface
+    )
+    density_start = _area_weighted_average(
+        surface_integrals, density_field, start_surface
+    )
+    density_end = _area_weighted_average(
+        surface_integrals, density_field, end_surface
+    )
+    velocity_start = _area_weighted_average(
+        surface_integrals, velocity_field, start_surface
+    )
+    velocity_end = _area_weighted_average(
+        surface_integrals, velocity_field, end_surface
+    )
+
+    pressure_drop = pressure_start - pressure_end
+    density_average = 0.5 * (density_start + density_end)
+    velocity_average = abs(0.5 * (velocity_start + velocity_end))
+    if pressure_drop <= 0.0:
+        raise ConfigError(
+            "flow-summary pressure drop must be positive (start pressure minus end pressure)"
+        )
+    if density_average <= 0.0:
+        raise ConfigError("flow-summary average density must be positive")
+    if velocity_average <= 0.0:
+        raise ConfigError("flow-summary average axial velocity must be non-zero")
+
+    reynolds_number = density_average * velocity_average * diameter / viscosity
+    darcy_friction_factor = (
+        2.0
+        * pressure_drop
+        * diameter
+        / (length * density_average * velocity_average**2)
+    )
+    row = {
+        "run_name": config.run_name,
+        "cell_count": raw.get("cell_count"),
+        "start_surface": start_surface,
+        "end_surface": end_surface,
+        "start_axial_position_m": start_position,
+        "end_axial_position_m": end_position,
+        "measurement_length_m": length,
+        "hydraulic_diameter_m": diameter,
+        "pressure_start_pa": pressure_start,
+        "pressure_end_pa": pressure_end,
+        "pressure_drop_pa": pressure_drop,
+        "density_start_kg_m3": density_start,
+        "density_end_kg_m3": density_end,
+        "density_average_kg_m3": density_average,
+        "axial_velocity_start_m_s": velocity_start,
+        "axial_velocity_end_m_s": velocity_end,
+        "axial_velocity_average_m_s": velocity_average,
+        "dynamic_viscosity_average_pa_s": viscosity,
+        "reynolds_number": reynolds_number,
+        "darcy_friction_factor": darcy_friction_factor,
+    }
+    output = artifacts.data_export / filename
+    with output.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(row))
+        writer.writeheader()
+        writer.writerow(row)
+
+
 def run_export(
     config: SimulationConfig,
     artifacts: RunArtifacts,
@@ -278,6 +402,7 @@ def run_export(
     exports = config.export.get("surfaces", [])
     surface_reports = config.export.get("surface_reports", [])
     surface_integrals = config.export.get("surface_integrals", [])
+    flow_summary = config.export.get("flow_summary")
     operations = config.export.get("operations", [])
     if (
         not isinstance(exports, list)
@@ -323,3 +448,4 @@ def run_export(
             surface_reports,
             surface_integrals,
         )
+        _write_flow_summary(session, config, artifacts, flow_summary)

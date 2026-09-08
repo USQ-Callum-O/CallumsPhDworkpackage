@@ -849,6 +849,28 @@
         ]
       },
       {
+        "name": "cs_z_1490mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.49,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
         "name": "cs_z_1560mm",
         "kind": "plane",
         "method": "xy-plane",
@@ -983,9 +1005,93 @@
           "z-coordinate",
           "pressure"
         ]
+      },
+            {
+        "name": "pressure_tap_start_500mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 0.5,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure"
+        ]
+      },
+      {
+        "name": "pressure_tap_end_500mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.5,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure"
+        ]
+      },
+      {
+        "name": "pressure_tap_start_1490mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.49,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure"
+        ]
+      },
+      {
+        "name": "pressure_tap_end_1490mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 2.49,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure"
+        ]
       }
     ],
     "surface_reports": [
+            {
+        "name": "pressure_start_500mm",
+        "surface": "pressure_tap_start_500mm",
+        "axial_position_m": 0.5,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_500mm",
+        "surface": "pressure_tap_end_500mm",
+        "axial_position_m": 1.5,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_start_1490mm",
+        "surface": "pressure_tap_start_1490mm",
+        "axial_position_m": 1.49,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_1490mm",
+        "surface": "pressure_tap_end_1490mm",
+        "axial_position_m": 2.49,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
       {
         "name": "pressure_start_10mm",
         "surface": "pressure_tap_start_10mm",
@@ -1020,7 +1126,20 @@
         "integral_type": "area-weighted-average",
         "units": "Pa"
       }
-    ]
+    ],
+    "flow_summary": {
+      "start_surface": "pressure_tap_start_10mm",
+      "end_surface": "pressure_tap_end_10mm",
+      "start_axial_position_m": 0.01,
+      "end_axial_position_m": 2.49,
+      "hydraulic_diameter_m": 0.032,
+      "pressure_field": "pressure",
+      "density_field": "density",
+      "velocity_field": "z-velocity",
+      "dynamic_viscosity_pa_s": 0.000018606542261347473,
+      "cell_count": null,
+      "output_filename": "flow-summary.csv"
+    }
   },
   "plotting": {
     "line_plots": [
