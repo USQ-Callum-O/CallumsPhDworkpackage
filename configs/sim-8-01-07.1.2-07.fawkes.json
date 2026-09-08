@@ -45,10 +45,10 @@
   "fluent": {
     "precision": "double",
     "dimension": 3,
-    "processor_count": 4,
+    "processor_count": 8,
     "ui_mode": "no_gui",
     "start_timeout": 600,
-    "additional_arguments": "-t4"
+    "additional_arguments": "-t8"
   },
   "meshing": {
     "workflow_type": "Watertight Geometry",
