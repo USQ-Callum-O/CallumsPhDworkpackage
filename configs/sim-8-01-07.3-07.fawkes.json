@@ -381,7 +381,7 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/turbulence/turbulent_viscosity_ratio",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/turbulence/turbulent_viscosity_ratio_profile/value",
         "value": 10.0
       },
       {
