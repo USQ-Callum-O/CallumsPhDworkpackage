@@ -376,7 +376,12 @@
       {
         "action": "set",
         "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/turbulence/turbulence_specification",
-        "value": "K and Omega"
+        "value": "Intermittency, K and Omega"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/turbulence/intermittency",
+        "value": 1.0
       },
       {
         "action": "set",
