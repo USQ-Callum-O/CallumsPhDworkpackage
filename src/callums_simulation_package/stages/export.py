@@ -213,13 +213,18 @@ def _write_pressure_method_comparison(
         integral_values[name] = _report_value(result, surface_name)
         integral_specs[name] = spec
 
-    if report_values.keys() != integral_values.keys():
+    # A config may contain extra surface reports that are not intended for the
+    # report-vs-integral comparison. Compare only names present in both lists.
+    matched_names = [name for name in report_values if name in integral_values]
+    if not matched_names:
         raise ConfigError(
-            "surface report and surface integral names must match exactly"
+            "pressure comparison requires at least one matching surface report "
+            "and surface integral name"
         )
 
     rows: list[dict[str, Any]] = []
-    for name, integral_value in integral_values.items():
+    for name in matched_names:
+        integral_value = integral_values[name]
         report_spec = report_specs[name]
         integral_spec = integral_specs[name]
         for key in ("surface", "field", "axial_position_m", "units"):
@@ -442,10 +447,12 @@ def run_export(
                 cell_func_domain=list(fields),
             )
             _write_profile(session, artifacts, surface_name, spec.get("profile"))
+        # The flow summary is independent of the optional pressure-method
+        # comparison, so write it first.
+        _write_flow_summary(session, config, artifacts, flow_summary)
         _write_pressure_method_comparison(
             session,
             artifacts,
             surface_reports,
             surface_integrals,
         )
-        _write_flow_summary(session, config, artifacts, flow_summary)

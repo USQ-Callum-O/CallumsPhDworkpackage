@@ -459,11 +459,6 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.1/turbulence/roughness_height",
-        "value": 6e-06
-      },
-      {
-        "action": "set",
         "path": "settings/setup/boundary_conditions/@wall.1.2/momentum/wall_motion",
         "value": "Stationary Wall"
       },
@@ -479,11 +474,6 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.2/turbulence/roughness_height",
-        "value": 6e-06
-      },
-      {
-        "action": "set",
         "path": "settings/setup/boundary_conditions/@wall.1.3/momentum/wall_motion",
         "value": "Stationary Wall"
       },
@@ -496,11 +486,6 @@
         "action": "set",
         "path": "settings/setup/boundary_conditions/@wall.1.3/thermal/material",
         "value": "rubber-natural-custim"
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.3/turbulence/roughness_height",
-        "value": 6e-06
       },
       {
         "action": "set",
@@ -1382,7 +1367,7 @@
       "density_field": "density",
       "velocity_field": "z-velocity",
       "dynamic_viscosity_pa_s": 0.000018606542261347473,
-      "cell_count": null,
+      "cell_count": 6545378,
       "output_filename": "flow-summary.csv"
     }
   },

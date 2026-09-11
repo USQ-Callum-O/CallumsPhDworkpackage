@@ -1137,7 +1137,7 @@
       "density_field": "density",
       "velocity_field": "z-velocity",
       "dynamic_viscosity_pa_s": 0.000018606542261347473,
-      "cell_count": null,
+      "cell_count": 6552690,
       "output_filename": "flow-summary.csv"
     }
   },
