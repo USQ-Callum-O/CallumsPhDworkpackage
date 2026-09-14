@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#PBS -N sim-8-01-07.4.1-07
+#PBS -N sim-8-01-07.4.2-07
 #PBS -l select=1:ncpus=9:mem=128gb
 #PBS -l walltime=24:00:00
 #PBS -l software=ansys
