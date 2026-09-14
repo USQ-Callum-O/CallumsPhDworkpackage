@@ -1103,7 +1103,7 @@
         ]
       },
       {
-        "name": "pressure_tap_start_10mm",
+      "name": "pressure_tap_start_10mm",
         "kind": "plane",
         "method": "xy-plane",
         "z": 0.01,
@@ -1112,11 +1112,13 @@
           "x-coordinate",
           "y-coordinate",
           "z-coordinate",
-          "pressure"
+          "pressure",
+          "density",
+          "z-velocity"
         ]
       },
       {
-        "name": "pressure_tap_end_10mm",
+      "name": "pressure_tap_end_10mm",
         "kind": "plane",
         "method": "xy-plane",
         "z": 2.49,
@@ -1125,7 +1127,9 @@
           "x-coordinate",
           "y-coordinate",
           "z-coordinate",
-          "pressure"
+          "pressure",
+          "density",
+          "z-velocity"
         ]
       },
       {

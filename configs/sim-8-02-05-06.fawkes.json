@@ -981,7 +981,7 @@
         ]
       },
       {
-        "name": "pressure_tap_start_10mm",
+      "name": "pressure_tap_start_10mm",
         "kind": "plane",
         "method": "xy-plane",
         "z": 0.01,
@@ -990,11 +990,13 @@
           "x-coordinate",
           "y-coordinate",
           "z-coordinate",
-          "pressure"
+          "pressure",
+          "density",
+          "z-velocity"
         ]
       },
       {
-        "name": "pressure_tap_end_10mm",
+      "name": "pressure_tap_end_10mm",
         "kind": "plane",
         "method": "xy-plane",
         "z": 2.49,
@@ -1003,7 +1005,9 @@
           "x-coordinate",
           "y-coordinate",
           "z-coordinate",
-          "pressure"
+          "pressure",
+          "density",
+          "z-velocity"
         ]
       },
       {
@@ -1121,6 +1125,38 @@
       {
         "name": "pressure_end_10mm",
         "surface": "pressure_tap_end_10mm",
+        "axial_position_m": 2.49,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_start_500mm",
+        "surface": "pressure_tap_start_500mm",
+        "axial_position_m": 0.5,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_500mm",
+        "surface": "pressure_tap_end_500mm",
+        "axial_position_m": 1.5,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_start_1490mm",
+        "surface": "pressure_tap_start_1490mm",
+        "axial_position_m": 1.49,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_1490mm",
+        "surface": "pressure_tap_end_1490mm",
         "axial_position_m": 2.49,
         "field": "pressure",
         "integral_type": "area-weighted-average",
