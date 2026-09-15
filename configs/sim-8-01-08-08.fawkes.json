@@ -533,11 +533,6 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/models/discrete_phase/general_settings/unsteady_tracking/number_of_time_steps",
-        "value": 1
-      },
-      {
-        "action": "set",
         "path": "settings/setup/models/discrete_phase/general_settings/contour_plotting",
         "value": "mean-and-rms"
       },
