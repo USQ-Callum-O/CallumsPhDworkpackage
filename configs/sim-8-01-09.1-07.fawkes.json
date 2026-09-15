@@ -363,7 +363,7 @@
           "no",
           "yes",
           "yes",
-          "water-vapor",
+          "\"water-vapor\"",
           "no",
           "no",
           "no"
@@ -373,7 +373,7 @@
         "action": "call",
         "path": "tui/define/models/eulerian_wallfilm/film_material",
         "args": [
-          "water-liquid",
+          "\"water-liquid\"",
           0.07194
         ]
       },
