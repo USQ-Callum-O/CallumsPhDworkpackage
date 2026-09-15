@@ -23,6 +23,29 @@ def _ensure_named(collection: Any, name: str) -> Any:
     return collection[name]
 
 
+def _particle_fields(raw: Any) -> list[str]:
+    if raw is None:
+        return []
+    if (
+        not isinstance(raw, list)
+        or any(not isinstance(field, str) or not field for field in raw)
+    ):
+        raise ConfigError("export.particle_fields must be an array of non-empty strings")
+    return list(dict.fromkeys(raw))
+
+
+def _surface_fields(spec: Mapping[str, Any], particle_fields: list[str]) -> list[str]:
+    fields = spec.get("fields")
+    if (
+        not isinstance(fields, list)
+        or not fields
+        or any(not isinstance(field, str) or not field for field in fields)
+    ):
+        name = str(spec.get("name", ""))
+        raise ConfigError(f"export surface {name!r} requires string fields")
+    return [*fields, *(field for field in particle_fields if field not in fields)]
+
+
 def _prepare_surface(session: Any, spec: Mapping[str, Any]) -> str:
     name = str(spec.get("name", ""))
     if not SAFE_EXPORT_NAME.fullmatch(name):
@@ -409,6 +432,7 @@ def run_export(
     surface_integrals = config.export.get("surface_integrals", [])
     flow_summary = config.export.get("flow_summary")
     operations = config.export.get("operations", [])
+    particle_fields = _particle_fields(config.export.get("particle_fields"))
     if (
         not isinstance(exports, list)
         or not isinstance(surface_reports, list)
@@ -435,9 +459,7 @@ def run_export(
             if not isinstance(spec, Mapping):
                 raise ConfigError(f"export surface {index} must be an object")
             surface_name = _prepare_surface(session, spec)
-            fields = spec.get("fields")
-            if not isinstance(fields, list) or not fields:
-                raise ConfigError(f"export surface {surface_name!r} requires fields")
+            fields = _surface_fields(spec, particle_fields)
             destination = _output_directory(artifacts, str(spec.get("destination", "contour")))
             output = destination / f"{surface_name}.csv"
             session.settings.file.export.ascii(

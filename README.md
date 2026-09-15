@@ -115,12 +115,18 @@ Additional direct migrations and per-case split-stage guides are:
 - `configs/sim-8-06.test.json` / [`docs/SIM_8_06_README.md`](docs/SIM_8_06_README.md)
 - `configs/sim-11-01.1-0.15.test.json` /
   [`docs/SIM_11_01_1_0_15_README.md`](docs/SIM_11_01_1_0_15_README.md)
+- `configs/sim-8-01-08-08.fawkes.json` /
+  [`docs/SIM_8_01_08_08_README.md`](docs/SIM_8_01_08_08_README.md)
 
 JSON contains geometry, meshing, physics, boundary-condition, iteration, export, and plotting
 parameters. It never points at another Python script. `operations.py` applies versioned Fluent
 settings operations and reports the exact operation number/path on failure.
 
 ## Results
+
+A solve-only migration can set `solver.mesh_input` to the name of an `inputs` entry. This lets
+one reviewed mesh feed a later solver version without copying or renaming it. DPM cases can set
+`export.particle_fields` to append particle variables to every configured surface export.
 
 Every run name is generated from the simulation ID and mesh/solver/post versions:
 

@@ -76,7 +76,8 @@ def validate_plan_inputs(run_plan: RunPlan) -> None:
 
     if "solve" in selected:
         _require_files(run_plan.config.inputs.values(), "Auxiliary solver input")
-        if solver_input == "mesh" and "mesh" not in selected:
+        named_mesh = run_plan.config.solver.get("mesh_input")
+        if solver_input == "mesh" and "mesh" not in selected and named_mesh is None:
             _require_files([run_plan.artifacts.mesh], "Mesh input")
         elif solver_input == "case_data":
             _require_files(

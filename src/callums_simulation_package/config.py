@@ -194,6 +194,19 @@ def load_config(path: str | Path) -> SimulationConfig:
         geometry = geometry_root / geometry
     geometry = geometry.resolve()
 
+    inputs = _resolve_inputs(root.get("inputs"), input_root)
+    solver = _mapping(root.get("solver", {}), "solver")
+    mesh_input = solver.get("mesh_input")
+    if mesh_input is not None:
+        if not isinstance(mesh_input, str) or not INPUT_NAME.fullmatch(mesh_input):
+            raise ConfigError(
+                "solver.mesh_input must name an entry in inputs using a valid identifier"
+            )
+        if mesh_input not in inputs:
+            raise ConfigError(
+                f"solver.mesh_input references undefined inputs entry: {mesh_input!r}"
+            )
+
     requested_stages = root.get("stages", list(STAGES))
     if not isinstance(requested_stages, list) or not requested_stages:
         raise ConfigError("stages must be a non-empty JSON array")
@@ -214,12 +227,12 @@ def load_config(path: str | Path) -> SimulationConfig:
         run_name=run_name,
         geometry=geometry,
         geometry_root=geometry_root,
-        inputs=_resolve_inputs(root.get("inputs"), input_root),
+        inputs=inputs,
         results_root=results_root,
         stages=tuple(requested_stages),
         launch=_launch_config(root.get("fluent")),
         meshing=_mapping(root.get("meshing", {}), "meshing"),
-        solver=_mapping(root.get("solver", {}), "solver"),
+        solver=solver,
         export=_mapping(root.get("export", {}), "export"),
         plotting=_mapping(root.get("plotting", {}), "plotting"),
     )

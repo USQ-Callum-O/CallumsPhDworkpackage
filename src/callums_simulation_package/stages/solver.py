@@ -17,10 +17,28 @@ def _require_file(path: Path, description: str) -> None:
         raise FileNotFoundError(f"{description} does not exist: {path}")
 
 
-def _read_input(session: Any, source: str, artifacts: RunArtifacts) -> None:
+def _mesh_input_path(config: SimulationConfig, artifacts: RunArtifacts) -> Path:
+    input_name = config.solver.get("mesh_input")
+    if input_name is None:
+        return artifacts.mesh
+    try:
+        return config.inputs[str(input_name)]
+    except KeyError as exc:
+        raise ConfigError(
+            f"solver.mesh_input references undefined inputs entry: {input_name!r}"
+        ) from exc
+
+
+def _read_input(
+    session: Any,
+    source: str,
+    config: SimulationConfig,
+    artifacts: RunArtifacts,
+) -> None:
     if source == "mesh":
-        _require_file(artifacts.mesh, "Mesh input")
-        session.settings.file.read_case(file_name=str(artifacts.mesh))
+        mesh = _mesh_input_path(config, artifacts)
+        _require_file(mesh, "Mesh input")
+        session.settings.file.read_case(file_name=str(mesh))
         return
     if source == "case_data":
         _require_file(artifacts.case, "Case input")
@@ -45,7 +63,7 @@ def run_solver(
     # Validate autosave settings before starting Fluent.
     _autosave_values(solver)
     with managed_session("solver", config.launch, launcher) as session:
-        _read_input(session, str(solver.get("input", "mesh")), artifacts)
+        _read_input(session, str(solver.get("input", "mesh")), config, artifacts)
         _configure_autosave(session, solver, artifacts)
         context = artifacts.context() | {
             name: path.as_posix() for name, path in config.inputs.items()

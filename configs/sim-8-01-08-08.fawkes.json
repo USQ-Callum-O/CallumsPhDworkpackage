@@ -33,10 +33,10 @@
   },
   "geometry": "Blast_hose/Thomsonvalve+2500mm_streight_hose-2.dsco",
   "inputs": {
-    "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/fawkes/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_plane_1300mm.prof",
-    "source_mesh": "../Results/Hose_simulations/sim-8-01-05-06/Case_and_data/sim-8-01-05-06.msh.h5"
+    "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/fawkes/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_plane_1300mm.prof"
   },
   "stages": [
+    "mesh",
     "solve",
     "export",
     "plot"
@@ -997,8 +997,7 @@
         "action": "call",
         "path": "settings/solution/run_calculation/calculate"
       }
-    ],
-    "mesh_input": "source_mesh"
+    ]
   },
   "export": {
     "surfaces": [
