@@ -1,6 +1,6 @@
 # sim-8-01-08-08: water-droplet hose case
 
-`configs/sim-8-01-08-08.fawkes.json` is a solve/export/plot case assembled from three reviewed
+`configs/sim-8-01-08-08.fawkes.json` is a split-stage case assembled from three reviewed
 sources:
 
 | Component | Source |
@@ -9,8 +9,14 @@ sources:
 | Carrier species and turbulence models | `sim-8-01-07.2-07` |
 | Discrete water-droplet setup | legacy `sim-8-07_config.json` and active 8-07 solver code |
 
-The output run name is `sim-8-01-08-08`. The case does not run Fluent Meshing and therefore does
-not try to read Discovery geometry on Linux.
+The output run name is `sim-8-01-08-08`. The config retains all four stages so that Windows
+can generate the mesh using the 05-06 meshing settings:
+
+```powershell
+callums-sim run configs/sim-8-01-08-08.fawkes.json --stages mesh
+```
+
+On Linux, explicitly select `solve export plot` to avoid reading Discovery geometry.
 
 ## What the case contains
 
@@ -58,20 +64,16 @@ Simulations/
 └── Results/
     └── Hose_simulations/
         ├── sim-3-04-03-05/
-        │   └── fawkes/
-        │       └── sim-3-04-03-05/
-        │           └── Data_export/Profile_data/
-        │               └── streight_hose-3-05_test_plane_1300mm.prof
-        └── sim-8-01-05-06/
+        │   └── Data_export/Profile_data/
+        │       └── streight_hose-3-05_test_plane_1300mm.prof
+        └── sim-8-01-08-08/
             └── Case_and_data/
-                └── sim-8-01-05-06.msh.h5
+                └── sim-8-01-08-08.msh.h5
 ```
 
 Keep those relative paths on the laptop and on Fawkes, or override the roots with
-`CALLUMS_INPUT_ROOT` and `CALLUMS_RESULTS_ROOT`. The nested `fawkes/sim-3-04-03-05` part
-matches the profile's current downloaded location. The source mesh remains in the 05-06 result
-directory; the runner reads it in place and writes the new case/data files only under
-`sim-8-01-08-08`.
+`CALLUMS_INPUT_ROOT` and `CALLUMS_RESULTS_ROOT`. Copy the Windows-generated mesh into this
+run's `Case_and_data` directory on Fawkes. No named `source_mesh` input is required.
 
 ## Local preflight
 
@@ -80,11 +82,11 @@ From the repository root in WSL:
 ```bash
 source .venv/bin/activate
 python -m pip install -e .
-callums-sim plan configs/sim-8-01-08-08.fawkes.json
-callums-sim validate configs/sim-8-01-08-08.fawkes.json
+callums-sim plan configs/sim-8-01-08-08.fawkes.json --stages solve export plot
+callums-sim validate configs/sim-8-01-08-08.fawkes.json --stages solve export plot
 ```
 
-`validate` checks that the named source mesh and inlet profile exist without launching Fluent.
+`validate` checks that this run's uploaded mesh and inlet profile exist without launching Fluent.
 The plan must show `solve -> export -> plot`; it must not include `mesh`.
 
 For a short laptop smoke test, copy the config to a temporary untracked file and lower
@@ -98,14 +100,14 @@ From `CallumsPhDworkpackage.code`:
 
 ```bash
 source .venv/bin/activate
-callums-sim validate configs/sim-8-01-08-08.fawkes.json
-qsub -v CONFIG=configs/sim-8-01-08-08.fawkes.json hpc/fawkes.pbs
+callums-sim validate configs/sim-8-01-08-08.fawkes.json --stages solve export plot
+qsub hpc/sim-8-01-08-08-fawkes.pbs
 qstat
 ```
 
-The generic PBS script runs the stages declared in the config. Its resource request and the config's
-eight-process Fluent setting should be checked against the current Fawkes allocation policy before
-a production submission.
+The case-specific PBS script selects `solve export plot`. Do not use the generic PBS script
+unchanged with this all-stage config: that script would also request meshing. Review the resource
+request against your allocation before submission.
 
 Expected new output:
 
@@ -146,7 +148,7 @@ carrier-only comparison. Fluent's disk-backed solution-animation workflow is doc
 
 ## Acceptance checklist
 
-- `callums-sim validate` reports both auxiliary inputs present.
+- `callums-sim validate --stages solve export plot` confirms the uploaded mesh and profile.
 - The plan starts at `solve`, with no Discovery or meshing stage.
 - The solver transcript reports species transport, Transition SST, and the
   `water_liquid_inlet` injection.
@@ -154,3 +156,17 @@ carrier-only comparison. Fluent's disk-backed solution-animation workflow is doc
 - `water_droplet_animation.cxa` and timestep frames are present after the solve.
 - The exported CSV headers contain `dpm-vel-mag`, `dpm-diam`, `dpm-concentration`, and
   `dpm-particles-in-cell`.
+
+## Job 876838: inactive droplet-material container
+
+The log shows that Fluent successfully read the 6,545,378-cell mesh and built the humid-air
+mixture. It then stopped at operation 15 while accessing `setup/materials/droplet-particle`.
+No calculation timestep had started.
+
+The original migration created `water-liquid` too early. The corrected config follows the
+legacy bootstrap sequence: enable DPM coupling, create the injection, atomically set a valid
+surface droplet injection using `argon-liquid`, create `water-liquid` in the now-active
+droplet container, and switch the injection to water before calculation. Argon is only a setup
+placeholder; no timestep is calculated with it.
+
+The memory-cache and operating-density messages in that log are warnings, not the fatal error.

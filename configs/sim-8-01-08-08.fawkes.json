@@ -16,8 +16,8 @@
     "droplet_model_source": "legacy sim-8-07_config.json and Thomsonvalve_Sim-8-07-solver.py",
     "scientific_review_required": true,
     "known_migration_differences": [
-      "This config starts at solve and reads the named source_mesh input; it does not remesh or copy the mesh into the new run directory.",
-      "The inherited inlet profile is read from the nested downloaded Fawkes result path that currently exists beside this repository.",
+      "The mesh stage is retained for Windows preparation. On Linux, select solve export plot to read the uploaded sim-8-01-08-08.msh.h5 from this run's Case_and_data directory.",
+      "The inlet profile uses the current portable Results path. DPM setup bootstraps the injection with argon-liquid before creating water-liquid; the injection is switched to water-liquid before calculation.",
       "The legacy solver used several experimental and triple-quoted DPM alternatives. This migration keeps the active liquid-water surface injection values and uses Fluent 2025 R1 settings names.",
       "The legacy Rosin-Rammler values span 0.180 micrometres to 720.205 micrometres with a 0.800 micrometre mean. That unusually broad distribution is preserved but must be scientifically reviewed.",
       "The 5 s injection stop time exceeds this run's 0.25 s simulated duration, so droplets are injected for the complete calculation.",
@@ -317,33 +317,6 @@
         "value": "humid-air"
       },
       {
-        "action": "set_item",
-        "path": "settings/setup/materials/droplet_particle",
-        "name": "water-liquid",
-        "value": {
-          "density": {
-            "option": "constant",
-            "value": 997.0
-          },
-          "specific_heat": {
-            "option": "constant",
-            "value": 4182.0
-          },
-          "thermal_conductivity": {
-            "option": "constant",
-            "value": 0.6
-          },
-          "latent_heat": {
-            "option": "constant",
-            "value": 2256000.0
-          },
-          "vaporization_temperature": {
-            "option": "constant",
-            "value": 373.15
-          }
-        }
-      },
-      {
         "action": "set",
         "path": "settings/setup/models/energy",
         "value": {
@@ -621,9 +594,52 @@
         "name": "water_liquid_inlet"
       },
       {
-        "action": "set",
-        "path": "settings/setup/models/discrete_phase/injections/@water_liquid_inlet/particle_type",
-        "value": "droplet"
+        "action": "patch",
+        "path": "settings/setup/models/discrete_phase/injections/@water_liquid_inlet",
+        "value": {
+          "particle_type": "droplet",
+          "material": "argon-liquid",
+          "injection_type": {
+            "option": "surface"
+          },
+          "initial_values": {
+            "location": {
+              "injection_surfaces": [
+                "dpm_injection_plane"
+              ],
+              "spatial_staggering": {
+                "enabled": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "action": "set_item",
+        "path": "settings/setup/materials/droplet_particle",
+        "name": "water-liquid",
+        "value": {
+          "density": {
+            "option": "constant",
+            "value": 997.0
+          },
+          "specific_heat": {
+            "option": "constant",
+            "value": 4182.0
+          },
+          "thermal_conductivity": {
+            "option": "constant",
+            "value": 0.6
+          },
+          "latent_heat": {
+            "option": "constant",
+            "value": 2256000.0
+          },
+          "vaporization_temperature": {
+            "option": "constant",
+            "value": 373.15
+          }
+        }
       },
       {
         "action": "set",
