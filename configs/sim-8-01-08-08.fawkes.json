@@ -690,21 +690,6 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/models/discrete_phase/injections/@water_liquid_inlet/initial_values/velocity/x_velocity",
-        "value": 0.0
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/models/discrete_phase/injections/@water_liquid_inlet/initial_values/velocity/y_velocity",
-        "value": 0.0
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/models/discrete_phase/injections/@water_liquid_inlet/initial_values/velocity/z_velocity",
-        "value": 1.0
-      },
-      {
-        "action": "set",
         "path": "settings/setup/models/discrete_phase/injections/@water_liquid_inlet/initial_values/particle_size/option",
         "value": "rosin-rammler"
       },
