@@ -19,7 +19,7 @@
       "The sim-8 prefix is retained: the full run name is sim-8-01-08.1-09.",
       "Water density is 997 kg/m3 and droplet mass flow is 0.0008786124157336355 kg/s; legacy steel defaults are not used.",
       "DPM sampling runs during calculation, records surface crossings over time, and writes into Data_export/DPM_samples using Fluent's working directory.",
-      "Particle-only velocity and diameter scenes have distinct windows and directories. TIFF storage type 6 and picture size 2560x1440 are explicit.",
+      "Particle-only velocity and diameter scenes have distinct windows and directories. TIFF storage type 6 is used, and the 2560x1440 hardcopy size is set through the Fluent TUI so it remains available in a headless HPC session.",
       "The inherited Rosin-Rammler diameters are unchanged. Review the 0.180-720.205 micrometre range and 0.800 micrometre mean.",
       "Analysis matches transient DPM crossings against final carrier fields. Re/St/Cd/drag and legacy momentum-exchange outputs are final-snapshot diagnostics, not a transient source integral.",
       "Sample rows represent parcel crossings, not unique physical particles. Repeated crossings and multiple stations must not be summed as unique particle counts."
@@ -926,24 +926,25 @@
         }
       },
       {
-        "action": "set",
-        "path": "settings/results/graphics/picture/use_window_resolution",
-        "value": false
+        "action": "call",
+        "path": "tui/display/set/picture/use_window_resolution",
+        "args": [
+          "no"
+        ]
       },
       {
-        "action": "set",
-        "path": "settings/results/graphics/picture/x_resolution",
-        "value": 2560
+        "action": "call",
+        "path": "tui/display/set/picture/x_resolution",
+        "args": [
+          2560
+        ]
       },
       {
-        "action": "set",
-        "path": "settings/results/graphics/picture/y_resolution",
-        "value": 1440
-      },
-      {
-        "action": "set",
-        "path": "settings/results/graphics/picture/dpi",
-        "value": 300
+        "action": "call",
+        "path": "tui/display/set/picture/y_resolution",
+        "args": [
+          1440
+        ]
       },
       {
         "action": "create",
