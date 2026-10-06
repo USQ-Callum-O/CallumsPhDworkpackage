@@ -10,7 +10,7 @@
     }
   },
   "metadata": {
-    "purpose": "Water-droplet hose: separate velocity/diameter animations, transient Sample .dpm files, and Simulation8.1 analyses.",
+    "purpose": "Water-droplet hose: transient Sample .dpm files, Simulation8.1 analyses, and the proven combined carrier-flow/droplet animation method from sim-8-01-08-08.",
     "physics_source": "successful sim-8-01-08-08",
     "analysis_source": "Thomsonvalve_Sim-8-01-results-plotting2.1.py (Simulation8.1)",
     "sampling_source": "Thomsonvalve_Sim-8-01-solver.py: results.report.discrete_phase.sample_trajectories",
@@ -19,7 +19,7 @@
       "The sim-8 prefix is retained: the full run name is sim-8-01-08.1-09.",
       "Water density is 997 kg/m3 and droplet mass flow is 0.0008786124157336355 kg/s; legacy steel defaults are not used.",
       "DPM sampling runs during calculation, records surface crossings over time, and writes into Data_export/DPM_samples using Fluent's working directory.",
-      "Particle-only velocity and diameter scenes have distinct windows and directories. TIFF storage type 6 is used, and the 2560x1440 hardcopy size is set through the Fluent TUI so it remains available in a headless HPC session.",
+      "Solver graphics reproduce the proven sim-8-01-08-08 method exactly: one graphics window, no explicit picture-resolution commands, a carrier-velocity scene, and a combined carrier-velocity/particle-diameter scene stored below Animation/Frames.",
       "The inherited Rosin-Rammler diameters are unchanged. Review the 0.180-720.205 micrometre range and 0.800 micrometre mean.",
       "Analysis matches transient DPM crossings against final carrier fields. Re/St/Cd/drag and legacy momentum-exchange outputs are final-snapshot diagnostics, not a transient source integral.",
       "Sample rows represent parcel crossings, not unique physical particles. Repeated crossings and multiple stations must not be summed as unique particle counts."
@@ -921,99 +921,17 @@
           "storage_dir": "{{animation_frames}}",
           "append_filename": true,
           "append_filename_with": "time-step",
-          "view": "yz_front_view",
-          "window_id": 1
-        }
-      },
-      {
-        "action": "call",
-        "path": "tui/display/set/picture/use_window_resolution",
-        "args": [
-          "no"
-        ]
-      },
-      {
-        "action": "call",
-        "path": "tui/display/set/picture/x_resolution",
-        "args": [
-          2560
-        ]
-      },
-      {
-        "action": "call",
-        "path": "tui/display/set/picture/y_resolution",
-        "args": [
-          1440
-        ]
-      },
-      {
-        "action": "create",
-        "path": "settings/results/graphics/particle_track",
-        "name": "water_velocity_tracks"
-      },
-      {
-        "action": "set",
-        "path": "settings/results/graphics/particle_track/@water_velocity_tracks",
-        "value": {
-          "field": "velocity-magnitude",
-          "injections_list": [
-            "water_liquid_inlet"
-          ],
-          "coarsen": 1,
-          "draw_mesh": false
-        }
-      },
-      {
-        "action": "create",
-        "path": "settings/results/scene",
-        "name": "water_velocity_scene"
-      },
-      {
-        "action": "call",
-        "path": "settings/results/scene/@water_velocity_scene/graphics_objects/add",
-        "kwargs": {
-          "name": "water_velocity_tracks"
-        }
-      },
-      {
-        "action": "call",
-        "path": "tui/display/set_window",
-        "args": [
-          "2"
-        ]
-      },
-      {
-        "action": "call",
-        "path": "settings/results/scene/@water_velocity_scene/display"
-      },
-      {
-        "action": "create",
-        "path": "settings/solution/calculation_activity/solution_animations",
-        "name": "water_velocity_animation"
-      },
-      {
-        "action": "set",
-        "path": "settings/solution/calculation_activity/solution_animations/@water_velocity_animation",
-        "value": {
-          "animate_on": "water_velocity_scene",
-          "frequency_of": "time-step",
-          "frequency": 1,
-          "storage_type": 6,
-          "storage_dir": "{{animation_velocity}}",
-          "window_id": 2,
-          "append_filename": true,
-          "append_filename_with": "time-step",
           "view": "yz_front_view"
         }
       },
       {
         "action": "create",
         "path": "settings/results/graphics/particle_track",
-        "name": "water_diameter_tracks"
+        "name": "water_droplet_tracks"
       },
       {
         "action": "set",
-        "path": "settings/results/graphics/particle_track/@water_diameter_tracks",
+        "path": "settings/results/graphics/particle_track/@water_droplet_tracks",
         "value": {
           "field": "particle-diameter",
           "injections_list": [
@@ -1026,41 +944,40 @@
       {
         "action": "create",
         "path": "settings/results/scene",
-        "name": "water_diameter_scene"
+        "name": "water_droplet_scene"
       },
       {
         "action": "call",
-        "path": "settings/results/scene/@water_diameter_scene/graphics_objects/add",
+        "path": "settings/results/scene/@water_droplet_scene/graphics_objects/add",
         "kwargs": {
-          "name": "water_diameter_tracks"
+          "name": "flow_development_contour"
         }
       },
       {
         "action": "call",
-        "path": "tui/display/set_window",
-        "args": [
-          "3"
-        ]
+        "path": "settings/results/scene/@water_droplet_scene/graphics_objects/add",
+        "kwargs": {
+          "name": "water_droplet_tracks"
+        }
       },
       {
         "action": "call",
-        "path": "settings/results/scene/@water_diameter_scene/display"
+        "path": "settings/results/scene/@water_droplet_scene/display"
       },
       {
         "action": "create",
         "path": "settings/solution/calculation_activity/solution_animations",
-        "name": "water_diameter_animation"
+        "name": "water_droplet_animation"
       },
       {
         "action": "set",
-        "path": "settings/solution/calculation_activity/solution_animations/@water_diameter_animation",
+        "path": "settings/solution/calculation_activity/solution_animations/@water_droplet_animation",
         "value": {
-          "animate_on": "water_diameter_scene",
+          "animate_on": "water_droplet_scene",
           "frequency_of": "time-step",
           "frequency": 1,
           "storage_type": 6,
-          "storage_dir": "{{animation_diameter}}",
-          "window_id": 3,
+          "storage_dir": "{{animation_frames}}",
           "append_filename": true,
           "append_filename_with": "time-step",
           "view": "yz_front_view"
