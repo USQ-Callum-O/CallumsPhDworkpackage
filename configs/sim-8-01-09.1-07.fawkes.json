@@ -370,7 +370,8 @@
         "action": "call",
         "path": "tui/define/models/eulerian_wallfilm/film_material",
         "args": [
-          "\"water-liquid\"",
+          "yes",
+          "water-liquid",
           0.07194
         ]
       },
