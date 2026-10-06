@@ -10,6 +10,7 @@ from ..artifacts import RunArtifacts
 from ..config import ConfigError, SimulationConfig
 from ..fluent import managed_session
 from ..operations import apply_operations
+from .particle_sampling import record_particles, validate_sampling
 
 
 def _require_file(path: Path, description: str) -> None:
@@ -56,19 +57,32 @@ def run_solver(
 ) -> None:
     """Read the mesh, apply solver operations, run, and save case/data."""
 
+    artifacts.create_directories()
     solver = config.solver
     operations = solver.get("operations")
     if not isinstance(operations, list) or not operations:
         raise ConfigError("solver.operations must be a non-empty array")
     # Validate autosave settings before starting Fluent.
     _autosave_values(solver)
+    sampling = solver.get("dpm_sampling")
+    validate_sampling(sampling)
+    calculations = [i for i, op in enumerate(operations)
+                    if op.get("path") == "settings/solution/run_calculation/calculate"]
+    if sampling is not None and len(calculations) != 1:
+        raise ConfigError("DPM sampling requires exactly one run_calculation/calculate operation")
     with managed_session("solver", config.launch, launcher) as session:
         _read_input(session, str(solver.get("input", "mesh")), config, artifacts)
         _configure_autosave(session, solver, artifacts)
         context = artifacts.context() | {
             name: path.as_posix() for name, path in config.inputs.items()
         }
-        apply_operations(session, operations, context)
+        if sampling is None:
+            apply_operations(session, operations, context)
+        else:
+            calculate_at = calculations[0]
+            apply_operations(session, operations[:calculate_at], context)
+            with record_particles(session, sampling, artifacts):
+                apply_operations(session, operations[calculate_at:], context)
         if solver.get("write_case_data", True):
             # The canonical final pair is deliberately unsuffixed. Autosaves use
             # their own subdirectory, so neither output can overwrite the other.
@@ -137,4 +151,3 @@ def _configure_autosave(
         # Compatibility with Fluent trees where the suffix is a scalar.
         suffix_settings.set_state(suffix)
         auto_save.number_of_digits.set_state(digits)
-

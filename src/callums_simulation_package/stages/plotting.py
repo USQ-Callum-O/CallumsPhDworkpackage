@@ -117,3 +117,6 @@ def run_plotting(config: SimulationConfig, artifacts: RunArtifacts, launcher: An
         _line_plot(spec, artifacts, plt, pd)
     for spec in contour_plots:
         _contour_plot(spec, artifacts, plt, np, pd)
+    if config.plotting.get("dpm_analysis") is not None:
+        from .dpm_analysis import run_dpm_analysis
+        run_dpm_analysis(config, artifacts)

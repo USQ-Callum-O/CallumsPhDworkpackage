@@ -117,6 +117,8 @@ Additional direct migrations and per-case split-stage guides are:
   [`docs/SIM_11_01_1_0_15_README.md`](docs/SIM_11_01_1_0_15_README.md)
 - `configs/sim-8-01-08-08.fawkes.json` /
   [`docs/SIM_8_01_08_08_README.md`](docs/SIM_8_01_08_08_README.md)
+- `configs/sim-8-01-08.1-09.fawkes.json` /
+  [`docs/SIM_8_01_08_1_09_README.md`](docs/SIM_8_01_08_1_09_README.md)
 
 JSON contains geometry, meshing, physics, boundary-condition, iteration, export, and plotting
 parameters. It never points at another Python script. `operations.py` applies versioned Fluent

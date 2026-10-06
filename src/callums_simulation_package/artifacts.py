@@ -29,6 +29,10 @@ class RunArtifacts:
     autosave_base: Path
     animation: Path
     animation_frames: Path
+    animation_velocity: Path
+    animation_diameter: Path
+    dpm_samples: Path
+    particle_plot: Path
     results_plotting: Path
     line_plot: Path
     contour_plot: Path
@@ -63,6 +67,10 @@ class RunArtifacts:
             autosave_base=autosave / run_name,
             animation=animation,
             animation_frames=animation / "Frames",
+            animation_velocity=animation / "Particle_velocity",
+            animation_diameter=animation / "Particle_diameter",
+            dpm_samples=data_export / "DPM_samples",
+            particle_plot=results_plotting / "Particle_analysis",
             results_plotting=results_plotting,
             line_plot=results_plotting / "Line_plot",
             contour_plot=results_plotting / "Contour_plot",
@@ -82,6 +90,10 @@ class RunArtifacts:
             self.profile_data,
             self.autosave,
             self.animation_frames,
+            self.animation_velocity,
+            self.animation_diameter,
+            self.dpm_samples,
+            self.particle_plot,
             self.line_plot,
             self.contour_plot,
         ):
@@ -92,4 +104,3 @@ class RunArtifacts:
 
     def context(self) -> dict[str, str]:
         return self.as_dict()
-

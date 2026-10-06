@@ -420,6 +420,33 @@ def _write_flow_summary(
         writer.writerow(row)
 
 
+
+def _write_axial_averages(session: Any, artifacts: RunArtifacts, raw: Any) -> None:
+    if raw is None:
+        return
+    if not isinstance(raw, list) or any(not isinstance(item, Mapping) for item in raw):
+        raise ConfigError("export.axial_averages must be an array of station definitions")
+    fields = {"total_energy_Jkg": "total-energy", "total_pressure_Pa": "total-pressure",
+              "velmag_mps": "velocity-magnitude", "total_temp_K": "total-temperature"}
+    rows = []
+    for spec in raw:
+        name = str(spec["surface"])
+        if not SAFE_EXPORT_NAME.fullmatch(name):
+            raise ConfigError(f"Invalid axial-average station: {name!r}")
+        row = {"surface": name, "z_m": float(spec["z"])}
+        for column, field in fields.items():
+            result = session.settings.results.report.surface_integrals.get_area_weighted_avg(
+                report_of=field, surface_names=[name])
+            row[column] = _report_value(result, name)
+        rows.append(row)
+    if rows:
+        with (artifacts.data_export / "axial-averages.csv").open(
+            "w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+
+
 def run_export(
     config: SimulationConfig,
     artifacts: RunArtifacts,
@@ -427,6 +454,7 @@ def run_export(
 ) -> None:
     """Load case/data and export configured surfaces as Fluent ASCII CSV."""
 
+    artifacts.create_directories()
     exports = config.export.get("surfaces", [])
     surface_reports = config.export.get("surface_reports", [])
     surface_integrals = config.export.get("surface_integrals", [])
@@ -469,6 +497,7 @@ def run_export(
                 cell_func_domain=list(fields),
             )
             _write_profile(session, artifacts, surface_name, spec.get("profile"))
+        _write_axial_averages(session, artifacts, config.export.get("axial_averages"))
         # The flow summary is independent of the optional pressure-method
         # comparison, so write it first.
         _write_flow_summary(session, config, artifacts, flow_summary)

@@ -236,6 +236,7 @@ def run_meshing(
 ) -> None:
     """Execute one declarative Fluent meshing workflow."""
 
+    artifacts.create_directories()
     meshing = config.meshing
     tasks = meshing.get("tasks")
     if tasks is None:
