@@ -520,7 +520,7 @@
         "path": "settings/setup/boundary_conditions/@wall.1.1/wall_film",
         "value": {
           "eulerian_film_wall": true,
-          "film_condition_type": "Initial Condition",
+          "film_condition_type": "film-wall-initial",
           "film_height": {
             "option": "constant",
             "value": 0.0
@@ -561,7 +561,7 @@
         "path": "settings/setup/boundary_conditions/@wall.1.2/wall_film",
         "value": {
           "eulerian_film_wall": true,
-          "film_condition_type": "Initial Condition",
+          "film_condition_type": "film-wall-initial",
           "film_height": {
             "option": "constant",
             "value": 0.0
@@ -602,7 +602,7 @@
         "path": "settings/setup/boundary_conditions/@wall.1.3/wall_film",
         "value": {
           "eulerian_film_wall": true,
-          "film_condition_type": "Initial Condition",
+          "film_condition_type": "film-wall-initial",
           "film_height": {
             "option": "constant",
             "value": 0.0
