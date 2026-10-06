@@ -522,11 +522,11 @@
           "eulerian_film_wall": true,
           "film_condition_type": "film-wall-initial",
           "film_height": {
-            "option": "constant",
+            "option": "value",
             "value": 0.0
           },
           "film_temperature": {
-            "option": "constant",
+            "option": "value",
             "value": 300.0
           },
           "enable_film_phase_change": true,
@@ -563,11 +563,11 @@
           "eulerian_film_wall": true,
           "film_condition_type": "film-wall-initial",
           "film_height": {
-            "option": "constant",
+            "option": "value",
             "value": 0.0
           },
           "film_temperature": {
-            "option": "constant",
+            "option": "value",
             "value": 300.0
           },
           "enable_film_phase_change": true,
@@ -604,11 +604,11 @@
           "eulerian_film_wall": true,
           "film_condition_type": "film-wall-initial",
           "film_height": {
-            "option": "constant",
+            "option": "value",
             "value": 0.0
           },
           "film_temperature": {
-            "option": "constant",
+            "option": "value",
             "value": 300.0
           },
           "enable_film_phase_change": true,
