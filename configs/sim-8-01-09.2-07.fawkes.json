@@ -5,7 +5,7 @@
     "category": "hose",
     "versions": {
       "mesh": "01",
-      "solver": "09.1",
+      "solver": "09.2",
       "post": "07"
     }
   },
