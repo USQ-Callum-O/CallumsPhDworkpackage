@@ -23,29 +23,6 @@ def _ensure_named(collection: Any, name: str) -> Any:
     return collection[name]
 
 
-def _particle_fields(raw: Any) -> list[str]:
-    if raw is None:
-        return []
-    if (
-        not isinstance(raw, list)
-        or any(not isinstance(field, str) or not field for field in raw)
-    ):
-        raise ConfigError("export.particle_fields must be an array of non-empty strings")
-    return list(dict.fromkeys(raw))
-
-
-def _surface_fields(spec: Mapping[str, Any], particle_fields: list[str]) -> list[str]:
-    fields = spec.get("fields")
-    if (
-        not isinstance(fields, list)
-        or not fields
-        or any(not isinstance(field, str) or not field for field in fields)
-    ):
-        name = str(spec.get("name", ""))
-        raise ConfigError(f"export surface {name!r} requires string fields")
-    return [*fields, *(field for field in particle_fields if field not in fields)]
-
-
 def _prepare_surface(session: Any, spec: Mapping[str, Any]) -> str:
     name = str(spec.get("name", ""))
     if not SAFE_EXPORT_NAME.fullmatch(name):
@@ -372,13 +349,13 @@ def _write_flow_summary(
         surface_integrals, velocity_field, end_surface
     )
 
+    # Retain the signed start-minus-end value for diagnosis.  A reversed or
+    # developing solution can legitimately produce a non-positive value; that
+    # must not abort the export stage and prevent the independent plot stage.
     pressure_drop = pressure_start - pressure_end
+    pressure_drop_magnitude = abs(pressure_drop)
     density_average = 0.5 * (density_start + density_end)
     velocity_average = abs(0.5 * (velocity_start + velocity_end))
-    if pressure_drop <= 0.0:
-        raise ConfigError(
-            "flow-summary pressure drop must be positive (start pressure minus end pressure)"
-        )
     if density_average <= 0.0:
         raise ConfigError("flow-summary average density must be positive")
     if velocity_average <= 0.0:
@@ -387,7 +364,7 @@ def _write_flow_summary(
     reynolds_number = density_average * velocity_average * diameter / viscosity
     darcy_friction_factor = (
         2.0
-        * pressure_drop
+        * pressure_drop_magnitude
         * diameter
         / (length * density_average * velocity_average**2)
     )
@@ -403,6 +380,8 @@ def _write_flow_summary(
         "pressure_start_pa": pressure_start,
         "pressure_end_pa": pressure_end,
         "pressure_drop_pa": pressure_drop,
+        "pressure_drop_magnitude_pa": pressure_drop_magnitude,
+        "pressure_drop_direction_ok": pressure_drop > 0.0,
         "density_start_kg_m3": density_start,
         "density_end_kg_m3": density_end,
         "density_average_kg_m3": density_average,
@@ -420,33 +399,6 @@ def _write_flow_summary(
         writer.writerow(row)
 
 
-
-def _write_axial_averages(session: Any, artifacts: RunArtifacts, raw: Any) -> None:
-    if raw is None:
-        return
-    if not isinstance(raw, list) or any(not isinstance(item, Mapping) for item in raw):
-        raise ConfigError("export.axial_averages must be an array of station definitions")
-    fields = {"total_energy_Jkg": "total-energy", "total_pressure_Pa": "total-pressure",
-              "velmag_mps": "velocity-magnitude", "total_temp_K": "total-temperature"}
-    rows = []
-    for spec in raw:
-        name = str(spec["surface"])
-        if not SAFE_EXPORT_NAME.fullmatch(name):
-            raise ConfigError(f"Invalid axial-average station: {name!r}")
-        row = {"surface": name, "z_m": float(spec["z"])}
-        for column, field in fields.items():
-            result = session.settings.results.report.surface_integrals.get_area_weighted_avg(
-                report_of=field, surface_names=[name])
-            row[column] = _report_value(result, name)
-        rows.append(row)
-    if rows:
-        with (artifacts.data_export / "axial-averages.csv").open(
-            "w", encoding="utf-8", newline="") as stream:
-            writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
-            writer.writeheader()
-            writer.writerows(rows)
-
-
 def run_export(
     config: SimulationConfig,
     artifacts: RunArtifacts,
@@ -454,13 +406,11 @@ def run_export(
 ) -> None:
     """Load case/data and export configured surfaces as Fluent ASCII CSV."""
 
-    artifacts.create_directories()
     exports = config.export.get("surfaces", [])
     surface_reports = config.export.get("surface_reports", [])
     surface_integrals = config.export.get("surface_integrals", [])
     flow_summary = config.export.get("flow_summary")
     operations = config.export.get("operations", [])
-    particle_fields = _particle_fields(config.export.get("particle_fields"))
     if (
         not isinstance(exports, list)
         or not isinstance(surface_reports, list)
@@ -487,7 +437,9 @@ def run_export(
             if not isinstance(spec, Mapping):
                 raise ConfigError(f"export surface {index} must be an object")
             surface_name = _prepare_surface(session, spec)
-            fields = _surface_fields(spec, particle_fields)
+            fields = spec.get("fields")
+            if not isinstance(fields, list) or not fields:
+                raise ConfigError(f"export surface {surface_name!r} requires fields")
             destination = _output_directory(artifacts, str(spec.get("destination", "contour")))
             output = destination / f"{surface_name}.csv"
             session.settings.file.export.ascii(
@@ -497,7 +449,6 @@ def run_export(
                 cell_func_domain=list(fields),
             )
             _write_profile(session, artifacts, surface_name, spec.get("profile"))
-        _write_axial_averages(session, artifacts, config.export.get("axial_averages"))
         # The flow summary is independent of the optional pressure-method
         # comparison, so write it first.
         _write_flow_summary(session, config, artifacts, flow_summary)
