@@ -26,6 +26,43 @@ def validate_sampling(raw: Any) -> None:
         for surface in surfaces
     ):
         raise ConfigError("solver.dpm_sampling.surfaces requires plane definitions")
+    validation_station = raw.get("validation_station")
+    if validation_station is not None and validation_station not in {
+        item.get("name") for item in surfaces
+    }:
+        raise ConfigError(
+            "solver.dpm_sampling.validation_station must name one of its sample planes"
+        )
+    expected_distribution = raw.get("expected_distribution")
+    if expected_distribution is not None:
+        if not isinstance(expected_distribution, Mapping):
+            raise ConfigError("solver.dpm_sampling.expected_distribution must be an object")
+        for key in ("minimum_diameter_m", "mean_diameter_m", "maximum_diameter_m", "spread"):
+            try:
+                value = float(expected_distribution[key])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ConfigError(
+                    f"solver.dpm_sampling.expected_distribution.{key} must be numeric"
+                ) from exc
+            if value <= 0:
+                raise ConfigError(
+                    f"solver.dpm_sampling.expected_distribution.{key} must be positive"
+                )
+        low = float(expected_distribution["minimum_diameter_m"])
+        mean = float(expected_distribution["mean_diameter_m"])
+        high = float(expected_distribution["maximum_diameter_m"])
+        if not low <= mean <= high:
+            raise ConfigError(
+                "expected Rosin-Rammler diameters must satisfy min <= mean <= max"
+            )
+        try:
+            number = int(expected_distribution["number_of_diameters"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ConfigError(
+                "solver.dpm_sampling.expected_distribution.number_of_diameters must be an integer"
+            ) from exc
+        if number < 2:
+            raise ConfigError("expected number_of_diameters must be at least 2")
     for key in ("append_sample", "accumulate_rates", "sort_sample_files"):
         if key in raw and not isinstance(raw[key], bool):
             raise ConfigError(f"solver.dpm_sampling.{key} must be boolean")
@@ -76,6 +113,8 @@ def record_particles(session: Any, raw: Mapping[str, Any], artifacts: Any):
         index = {
             "injections": raw["injections"], "planes": planes,
             "boundaries": boundaries, "solver_failed": failed,
+            "validation_station": raw.get("validation_station"),
+            "expected_distribution": raw.get("expected_distribution"),
             "files": [{"name": path.name, "bytes": path.stat().st_size} for path in files],
             "expected_files": [f"{name}.dpm" for name in [*planes, *boundaries]],
         }

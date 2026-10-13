@@ -1,0 +1,1833 @@
+{
+  "schema_version": 1,
+  "simulation": {
+    "id": "sim-8",
+    "category": "hose",
+    "versions": {
+      "mesh": "01",
+      "solver": "11",
+      "post": "09"
+    }
+  },
+  "metadata": {
+    "purpose": "Legacy Simulation8 steel-sphere baseline with editable injection drag and explicit elastic wall restitution.",
+    "legacy_solver": "Thomsonvalve_Sim-8-01-solver.py",
+    "workflow_base": "current sim-8-01-08.1-09.fawkes.json (including current sampling and graphics edits)",
+    "scientific_review_required": true,
+    "baseline": {
+      "particle": "inert Steel-shot",
+      "density_kg_m3": 7800.0,
+      "specific_heat_J_kg_K": 500.0,
+      "mass_flow_kg_s": 0.06944,
+      "injection_surface": "wall.1.3",
+      "injection_start_s": 0.025,
+      "injection_stop_s": 0.25,
+      "diameter_min_m": 0.00025,
+      "diameter_mean_m": 0.00045,
+      "diameter_max_m": 0.0006,
+      "drag_law": "spherical",
+      "normal_restitution": 1.0,
+      "tangential_restitution": 1.0
+    },
+    "migration_notes": [
+      "Uses NIST real-gas AIR, realizable k-epsilon with standard wall functions, operating pressure 0 Pa and outlet pressure 689476 Pa as in the legacy steel solver. No humid-air species transport or evaporation is retained.",
+      "NIST lookup pressure maximum is expanded from the legacy 20000 Pa to 1000000 Pa, since the old 13200-20000 Pa table did not cover the outlet. This is an explicit migration correction rather than a bit-identical old case.",
+      "Steel density follows the solver's 7800 kg/m3, correcting the old plotting default of 7850 kg/m3. Plot viscosity remains an approximate constant for real-gas air.",
+      "The actual legacy mean diameter was 4.5e-4 m (0.45 mm), despite a nearby 0.55 mm comment.",
+      "Final injection surface is wall.1.3. The earlier legacy z=0.01 and number_of_streams=5 entries were replaced by the final surface-location dictionary.",
+      "Mass flow is specified as total_flow_rate=0.06944 with area scaling so it expresses the intended approximately 250 kg/h total injection; the original used the ambiguous flow_rate field. Verify the reported injection total in Fluent.",
+      "Initial particle velocity is explicitly zero and face-normal velocity is disabled; the legacy velocity assignments were commented out. The particles accelerate under fluid forces.",
+      "Unsteady tracking is explicitly enabled for the current sampling workflow. The old solver did not explicitly set this flag.",
+      "Walls explicitly reflect with normal and tangential restitution 1.0. The legacy did not assign these coefficients and depended on Fluent defaults. Inlet and outlet particle boundaries explicitly escape.",
+      "Saffman lift, particle rotation, turbulent dispersion and DEM collisions are explicitly disabled for this baseline; the old steel solver did not enable them.",
+      "The post-processing Cd/Fd routines still use the migrated spherical Morsi-Alexander diagnostic. Changing the solver drag law alone does not change that diagnostic. See the accompanying guide before interpreting non-spherical force plots.",
+      "Run duration is 125 steps x 0.0025 s = 0.3125 s, as in the legacy fresh solve; this does not recreate the separate 400-step resume checkpoint."
+    ],
+    "editable_paths": {
+      "drag_law": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/physical_models/particle_drag/option",
+      "shape_factor_if_nonspherical": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/physical_models/particle_drag/shape_factor",
+      "wall_restitution": "settings/setup/boundary_conditions/wall/@wall.1.1/discrete_phase/reflection_coefficients (repeat for wall.1.2 and wall.1.3)"
+    }
+  },
+  "paths": {
+    "geometry_root": "../../Geometry",
+    "input_root": "../",
+    "results_root": "../../Results"
+  },
+  "geometry": "Blast_hose/Thomsonvalve+2500mm_streight_hose-2.dsco",
+  "inputs": {
+    "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_plane_1300mm.prof"
+  },
+  "stages": [
+    "mesh",
+    "solve",
+    "export",
+    "plot"
+  ],
+  "fluent": {
+    "precision": "double",
+    "dimension": 3,
+    "processor_count": 8,
+    "ui_mode": "no_gui",
+    "start_timeout": 600,
+    "additional_arguments": "-t8"
+  },
+  "meshing": {
+    "workflow_type": "Watertight Geometry",
+    "check_mesh": true,
+    "describe_geometry": {
+      "SetupType": "The geometry consists of only fluid regions with no voids"
+    },
+    "update_boundaries": {
+      "BoundaryLabelTypeMap": {
+        "mass-flow-inlet": "mass-flow-inlet",
+        "outlet": "pressure-outlet",
+        "wall.1.1": "wall",
+        "wall.1.2": "wall",
+        "wall.1.3": "wall"
+      }
+    },
+    "local_sizing": [
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_1",
+        "BOIControlType": "Face Size",
+        "BOISize": 0.6,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": [
+          "mass-flow-inlet",
+          "outlet"
+        ]
+      },
+      {
+        "AddChild": "yes",
+        "BOIControlName": "facesize_2",
+        "BOIControlType": "Face Size",
+        "BOISize": 1,
+        "BOIGrowthRate": 1.2,
+        "BOISelectorType": "Labels",
+        "BOIFaceLabelList": [
+          "wall.1.1",
+          "wall.1.2",
+          "wall.1.3"
+        ]
+      }
+    ],
+    "surface_mesh": {
+      "MinimumSize": 0.05,
+      "MaximumSize": 8,
+      "GrowthRate": 1.2,
+      "SizeFunction": "Curvature and Proximity",
+      "CurvatureNormalAngle": 18,
+      "NumCellsAcrossGap": 1,
+      "ScopeProximity": "Edges",
+      "SeparateBoundaryZone": "No"
+    },
+    "repair_geometry": {
+      "UseAutoRepair": "Yes",
+      "RemoveDuplicateFaces": "Yes",
+      "CollapseShortEdges": "Yes",
+      "FixSmallSlivers": "Yes",
+      "SewGeometry": "Yes"
+    },
+    "create_regions": {
+      "NumberOfFlowVolumes": 1,
+      "MeshObject": "hose-solid"
+    },
+    "boundary_layers": [
+      {
+        "BLControlName": "uniform_1",
+        "FirstHeight": 0.005,
+        "LocalPrismPreferences": {
+          "Continuous": "Continuous",
+          "ShowLocalPrismPreferences": true
+        },
+        "NumberOfLayers": 15,
+        "OffsetMethodType": "uniform",
+        "Rate": 1.4,
+        "_operation_kwargs": {
+          "DeferUpdate": false
+        }
+      }
+    ],
+    "volume_mesh": {
+      "Solver": "Fluent",
+      "VolumeFill": "poly-hexcore",
+      "BufferLayers": 5,
+      "PeelLayers": 3,
+      "VolumeFillControls": {
+        "HexMinCellLength": 0.01,
+        "HexMaxCellLength": 10
+      },
+      "VolumeMeshPreferences": {
+        "CheckSelfProximity": "yes",
+        "ShowVolumeMeshPreferences": true
+      },
+      "EnableParallelMeshing": true,
+      "QualityMethod": "Orthogonal",
+      "QualityLimit": 0.05,
+      "UseSizeField": false,
+      "PolyFeatureAngle": 30,
+      "AvoidOctreeTransition": false,
+      "CheckSelfProximity": false,
+      "WritePrismControlFile": false
+    }
+  },
+  "solver": {
+    "input": "mesh",
+    "write_case_data": true,
+    "autosave": {
+      "data_frequency": 25,
+      "suffix": "time-step",
+      "digits": 5
+    },
+    "operations": [
+      {
+        "action": "set",
+        "path": "settings/setup/general/solver/type",
+        "value": "pressure-based"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/solver/time",
+        "value": "unsteady-2nd-order"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/operating_conditions/gravity/enable",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/operating_conditions/gravity/components",
+        "value": [
+          0.0,
+          -9.81,
+          0.0
+        ]
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/general/operating_conditions/operating_pressure",
+        "value": 0.0
+      },
+      {
+        "action": "set_item",
+        "path": "settings/setup/materials/fluid",
+        "name": "air",
+        "value": {
+          "density": {
+            "option": "real-gas-nist",
+            "real_gas_nist": {
+              "saturation_points": 12,
+              "temperature_maximum": 1600.0,
+              "temperature_minimum": 237.3,
+              "temperature_points": 101,
+              "pressure_maximum": 1000000.0,
+              "pressure_minimum": 13200.0,
+              "pressure_points": 101,
+              "lookup_table": true,
+              "nist_fluid": "AIR"
+            }
+          },
+          "viscosity": {
+            "option": "real-gas-nist"
+          },
+          "specific_heat": {
+            "option": "real-gas-nist"
+          },
+          "thermal_conductivity": {
+            "option": "real-gas-nist"
+          }
+        }
+      },
+      {
+        "action": "set_item",
+        "path": "settings/setup/materials/solid",
+        "name": "rubber-natural-custim",
+        "value": {
+          "density": {
+            "option": "constant",
+            "value": 949.79
+          },
+          "specific_heat": {
+            "option": "constant",
+            "value": 1903.1
+          },
+          "thermal_conductivity": {
+            "option": "constant",
+            "value": 0.14422
+          }
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/energy",
+        "value": {
+          "enabled": true
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/model",
+        "value": "k-epsilon"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/k_epsilon_model",
+        "value": "realizable"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/near_wall_treatment/wall_treatment",
+        "value": "standard-wall-fn"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/options/compressibility_effects",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/viscous/options/viscous_heating",
+        "value": true
+      },
+      {
+        "action": "call",
+        "path": "tui/file/read_profile",
+        "args": [
+          "\"{{inlet_profile}}\""
+        ]
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/cell_zone_conditions/fluid/@hose-solid/general/material",
+        "value": "air"
+      },
+      {
+        "action": "call",
+        "path": "settings/setup/boundary_conditions/set_zone_type",
+        "kwargs": {
+          "zone_list": [
+            "mass-flow-inlet"
+          ],
+          "new_type": "velocity-inlet"
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/setup/boundary_conditions/set_zone_type",
+        "kwargs": {
+          "zone_list": [
+            "outlet"
+          ],
+          "new_type": "pressure-outlet"
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/momentum/reference_frame",
+        "value": "Absolute"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/turbulence/turbulence_specification",
+        "value": "K and Epsilon"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/turbulence/turbulent_kinetic_energy",
+        "value": "profile(\"test_plane_1p3m\", \"turb-kinetic-energy\") * 1 [m^2 s^-2]"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/turbulence/turbulent_dissipation_rate",
+        "value": "profile(\"test_plane_1p3m\", \"turb-diss-rate\") * 1 [m^2 s^-3]"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/momentum/velocity_specification_method",
+        "value": "Components"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/momentum/velocity_components",
+        "value": [
+          "profile(\"test_plane_1p3m\", \"x-velocity\") * 1 [m/s]",
+          "profile(\"test_plane_1p3m\", \"y-velocity\") * 1 [m/s]",
+          "profile(\"test_plane_1p3m\", \"z-velocity\") * 1 [m/s]"
+        ]
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/thermal/temperature",
+        "value": "profile(\"test_plane_1p3m\", \"temperature\") * 1 [K]"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_outlet/@outlet/momentum/gauge_pressure",
+        "value": 689476.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.1/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.1/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.1/thermal/material",
+        "value": "rubber-natural-custim"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.1/turbulence/roughness_height",
+        "value": 6e-06
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.2/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.2/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.2/thermal/material",
+        "value": "rubber-natural-custim"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.2/turbulence/roughness_height",
+        "value": 6e-06
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.3/momentum/wall_motion",
+        "value": "Stationary Wall"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.3/momentum/shear_condition",
+        "value": "No Slip"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.3/thermal/material",
+        "value": "rubber-natural-custim"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/@wall.1.3/turbulence/roughness_height",
+        "value": 6e-06
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/general_settings/interaction/enabled",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/general_settings/interaction/iteration_interval",
+        "value": 3
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/general_settings/interaction/update_sources_every_iteration",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/general_settings/unsteady_tracking/enabled",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/general_settings/contour_plotting",
+        "value": "mean-and-rms"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/physical_models/particle_forces/saffman_lift_force_enabled",
+        "value": false
+      },
+      {
+        "action": "call",
+        "path": "tui/define/models/dpm/collisions/dem_collisions",
+        "args": [
+          "no"
+        ]
+      },
+      {
+        "action": "call",
+        "path": "tui/define/models/dpm/options/two_way_coupling",
+        "args": [
+          "yes"
+        ]
+      },
+      {
+        "action": "call",
+        "path": "tui/define/models/dpm/numerics/dynamic_interaction",
+        "args": [
+          "no"
+        ]
+      },
+      {
+        "action": "create",
+        "path": "settings/setup/models/discrete_phase/injections",
+        "name": "steel_shot_inlet"
+      },
+      {
+        "action": "patch",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet",
+        "value": {
+          "particle_type": "inert",
+          "material": "anthracite",
+          "injection_type": {
+            "option": "surface"
+          },
+          "initial_values": {
+            "location": {
+              "injection_surfaces": [
+                "wall.1.3"
+              ],
+              "spatial_staggering": {
+                "enabled": false
+              }
+            }
+          }
+        }
+      },
+      {
+        "action": "set_item",
+        "path": "settings/setup/materials/inert_particle",
+        "name": "Steel-shot",
+        "value": {
+          "density": {
+            "option": "constant",
+            "value": 7800.0
+          },
+          "specific_heat": {
+            "option": "constant",
+            "value": 500.0
+          }
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/material",
+        "value": "Steel-shot"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/injection_type/option",
+        "value": "surface"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/location/injection_surfaces",
+        "value": [
+          "wall.1.3"
+        ]
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/location/spatial_staggering/enabled",
+        "value": false
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/times/start_time",
+        "value": 0.025
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/times/stop_time",
+        "value": 0.25
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/temperature",
+        "value": 300.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/mass_flow_rate/total_flow_rate",
+        "value": 0.06944
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/mass_flow_rate/scale_by_area",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/velocity/use_face_normal_direction",
+        "value": false
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/velocity/x_velocity",
+        "value": 0.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/velocity/y_velocity",
+        "value": 0.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/velocity/z_velocity",
+        "value": 0.0
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/particle_size/option",
+        "value": "rosin-rammler"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/particle_size/rosin_rammler/min_diam",
+        "value": 0.00025
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/particle_size/rosin_rammler/max_diam",
+        "value": 0.0006
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/particle_size/rosin_rammler/mean_diam",
+        "value": 0.00045
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/particle_size/rosin_rammler/spread",
+        "value": 3.5
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/initial_values/particle_size/rosin_rammler/number_of_diameters",
+        "value": 10
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/methods/p_v_coupling/flow_scheme",
+        "value": "Coupled"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/methods/spatial_discretization/gradient_scheme",
+        "value": "least-square-cell-based"
+      },
+      {
+        "action": "set_item",
+        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
+        "name": "pressure",
+        "value": "second-order"
+      },
+      {
+        "action": "set_item",
+        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
+        "name": "density",
+        "value": "second-order-upwind"
+      },
+      {
+        "action": "set_item",
+        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
+        "name": "mom",
+        "value": "second-order-upwind"
+      },
+      {
+        "action": "set_item",
+        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
+        "name": "k",
+        "value": "second-order-upwind"
+      },
+      {
+        "action": "set_item",
+        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
+        "name": "epsilon",
+        "value": "second-order-upwind"
+      },
+      {
+        "action": "set_item",
+        "path": "settings/solution/methods/spatial_discretization/discretization_scheme",
+        "name": "temperature",
+        "value": "second-order-upwind"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/methods/warped_face_gradient_correction/enable",
+        "value": true
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/physical_models/particle_drag/option",
+        "value": "spherical"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/physical_models/particle_rotation/enabled",
+        "value": false
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/models/discrete_phase/injections/@steel_shot_inlet/physical_models/turbulent_dispersion/enabled",
+        "value": false
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/wall/@wall.1.1/discrete_phase/bc_type",
+        "value": "reflect"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/wall/@wall.1.1/discrete_phase/reflection_coefficients",
+        "value": {
+          "normal": {
+            "option": "constant",
+            "value": 1.0
+          },
+          "tangential": {
+            "option": "constant",
+            "value": 1.0
+          }
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/wall/@wall.1.2/discrete_phase/bc_type",
+        "value": "reflect"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/wall/@wall.1.2/discrete_phase/reflection_coefficients",
+        "value": {
+          "normal": {
+            "option": "constant",
+            "value": 1.0
+          },
+          "tangential": {
+            "option": "constant",
+            "value": 1.0
+          }
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/wall/@wall.1.3/discrete_phase/bc_type",
+        "value": "reflect"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/wall/@wall.1.3/discrete_phase/reflection_coefficients",
+        "value": {
+          "normal": {
+            "option": "constant",
+            "value": 1.0
+          },
+          "tangential": {
+            "option": "constant",
+            "value": 1.0
+          }
+        }
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/velocity_inlet/@mass-flow-inlet/discrete_phase/bc_type",
+        "value": "escape"
+      },
+      {
+        "action": "set",
+        "path": "settings/setup/boundary_conditions/pressure_outlet/@outlet/discrete_phase/bc_type",
+        "value": "escape"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/initialization/initialization_type",
+        "value": "hybrid"
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/initialization/hybrid_initialize"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/run_calculation/transient_controls/type",
+        "value": "Fixed"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/run_calculation/transient_controls/method",
+        "value": "User-Specified"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/run_calculation/transient_controls/time_step_size",
+        "value": 0.0025
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/run_calculation/transient_controls/time_step_count",
+        "value": 125
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/run_calculation/transient_controls/max_iter_per_time_step",
+        "value": 250
+      },
+      {
+        "action": "create",
+        "path": "settings/results/surfaces/plane_surface",
+        "name": "flow_development_plane"
+      },
+      {
+        "action": "set",
+        "path": "settings/results/surfaces/plane_surface/@flow_development_plane/method",
+        "value": "yz-plane"
+      },
+      {
+        "action": "set",
+        "path": "settings/results/surfaces/plane_surface/@flow_development_plane/x",
+        "value": 0.0
+      },
+      {
+        "action": "create",
+        "path": "settings/results/graphics/contour",
+        "name": "flow_development_contour"
+      },
+      {
+        "action": "set",
+        "path": "settings/results/graphics/contour/@flow_development_contour",
+        "value": {
+          "field": "velocity-magnitude",
+          "surfaces_list": [
+            "flow_development_plane"
+          ],
+          "filled": true
+        }
+      },
+      {
+        "action": "create",
+        "path": "settings/results/scene",
+        "name": "flow_development_scene"
+      },
+      {
+        "action": "call",
+        "path": "settings/results/scene/@flow_development_scene/graphics_objects/add",
+        "kwargs": {
+          "name": "flow_development_contour"
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/results/scene/@flow_development_scene/display"
+      },
+      {
+        "action": "call",
+        "path": "settings/results/graphics/views/camera/target",
+        "kwargs": {
+          "xyz": [
+            0.0,
+            0.0,
+            1.23
+          ]
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/results/graphics/views/camera/position",
+        "kwargs": {
+          "xyz": [
+            1.0,
+            0.0,
+            1.23
+          ]
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/results/graphics/views/camera/up_vector",
+        "kwargs": {
+          "xyz": [
+            0.0,
+            1.0,
+            0.0
+          ]
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/results/graphics/views/auto_scale"
+      },
+      {
+        "action": "call",
+        "path": "settings/results/graphics/views/save_view",
+        "kwargs": {
+          "view_name": "yz_front_view"
+        }
+      },
+      {
+        "action": "create",
+        "path": "settings/solution/calculation_activity/solution_animations",
+        "name": "flow_development_animation"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/calculation_activity/solution_animations/@flow_development_animation",
+        "value": {
+          "animate_on": "flow_development_scene",
+          "frequency_of": "time-step",
+          "frequency": 1,
+          "storage_type": 6,
+          "storage_dir": "{{animation_frames}}",
+          "append_filename": true,
+          "append_filename_with": "time-step",
+          "view": "yz_front_view"
+        }
+      },
+      {
+        "action": "create",
+        "path": "settings/results/graphics/particle_track",
+        "name": "steel_particle_tracks"
+      },
+      {
+        "action": "set",
+        "path": "settings/results/graphics/particle_track/@steel_particle_tracks",
+        "value": {
+          "field": "particle-diameter",
+          "injections_list": [
+            "steel_shot_inlet"
+          ],
+          "coarsen": 1,
+          "draw_mesh": false
+        }
+      },
+      {
+        "action": "create",
+        "path": "settings/results/scene",
+        "name": "steel_particle_scene"
+      },
+      {
+        "action": "call",
+        "path": "settings/results/scene/@steel_particle_scene/graphics_objects/add",
+        "kwargs": {
+          "name": "flow_development_contour"
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/results/scene/@steel_particle_scene/graphics_objects/add",
+        "kwargs": {
+          "name": "steel_particle_tracks"
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/results/scene/@steel_particle_scene/display"
+      },
+      {
+        "action": "create",
+        "path": "settings/solution/calculation_activity/solution_animations",
+        "name": "steel_particle_animation"
+      },
+      {
+        "action": "set",
+        "path": "settings/solution/calculation_activity/solution_animations/@steel_particle_animation",
+        "value": {
+          "animate_on": "steel_particle_scene",
+          "frequency_of": "time-step",
+          "frequency": 1,
+          "storage_type": 6,
+          "storage_dir": "{{animation_frames}}",
+          "append_filename": true,
+          "append_filename_with": "time-step",
+          "view": "yz_front_view"
+        }
+      },
+      {
+        "action": "call",
+        "path": "settings/solution/run_calculation/calculate"
+      }
+    ],
+    "dpm_sampling": {
+      "injections": [
+        "steel_shot_inlet"
+      ],
+      "surfaces": [
+        {
+          "name": "cs_z_001mm",
+          "kind": "plane",
+          "method": "xy-plane",
+          "z": 0.001
+        },
+        {
+          "name": "cs_z_060mm",
+          "kind": "plane",
+          "method": "xy-plane",
+          "z": 0.06
+        },
+        {
+          "name": "cs_z_250mm",
+          "kind": "plane",
+          "method": "xy-plane",
+          "z": 0.25
+        },
+        {
+          "name": "cs_z_495mm",
+          "kind": "plane",
+          "method": "xy-plane",
+          "z": 0.495
+        },
+        {
+          "name": "cs_z_1000mm",
+          "kind": "plane",
+          "method": "xy-plane",
+          "z": 1.0
+        },
+        {
+          "name": "cs_z_2000mm",
+          "kind": "plane",
+          "method": "xy-plane",
+          "z": 2.0
+        },
+        {
+          "name": "cs_z_2495mm",
+          "kind": "plane",
+          "method": "xy-plane",
+          "z": 2.495
+        }
+      ],
+      "boundaries": [
+        "wall.1.3"
+      ],
+      "append_sample": false,
+      "accumulate_rates": true,
+      "sort_sample_files": true
+    }
+  },
+  "export": {
+    "surfaces": [
+      {
+        "name": "central-line",
+        "kind": "line",
+        "p0": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "p1": [
+          0.0,
+          0.0,
+          5.0
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "line1-25mm",
+        "kind": "line",
+        "p0": [
+          0.0,
+          -0.016,
+          0.025
+        ],
+        "p1": [
+          0.0,
+          0.016,
+          0.025
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "line2-100mm",
+        "kind": "line",
+        "p0": [
+          0.0,
+          -0.016,
+          0.1
+        ],
+        "p1": [
+          0.0,
+          0.016,
+          0.1
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "line3-200mm",
+        "kind": "line",
+        "p0": [
+          0.0,
+          -0.016,
+          0.2
+        ],
+        "p1": [
+          0.0,
+          0.016,
+          0.2
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "line4-250mm",
+        "kind": "line",
+        "p0": [
+          0.0,
+          -0.016,
+          0.25
+        ],
+        "p1": [
+          0.0,
+          0.016,
+          0.25
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "line5-495mm",
+        "kind": "line",
+        "p0": [
+          0.0,
+          -0.016,
+          0.495
+        ],
+        "p1": [
+          0.0,
+          0.016,
+          0.495
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "line6-1000mm",
+        "kind": "line",
+        "p0": [
+          0.0,
+          -0.016,
+          1.0
+        ],
+        "p1": [
+          0.0,
+          0.016,
+          1.0
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "line7-2000mm",
+        "kind": "line",
+        "p0": [
+          0.0,
+          -0.016,
+          2.0
+        ],
+        "p1": [
+          0.0,
+          0.016,
+          2.0
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "line8-2495mm",
+        "kind": "line",
+        "p0": [
+          0.0,
+          -0.016,
+          2.495
+        ],
+        "p1": [
+          0.0,
+          0.016,
+          2.495
+        ],
+        "destination": "line",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "total-temperature",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-energy",
+          "density"
+        ]
+      },
+      {
+        "name": "cs_z_060mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 0.06,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_250mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 0.25,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_495mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 0.495,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_1000mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.0,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_1360mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.36,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_1490mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.49,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_1560mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.56,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_1760mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.76,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_2000mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 2.0,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_2260mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 2.26,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_2460mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 2.46,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "pressure_tap_start_10mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 0.01,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "density",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "pressure_tap_end_10mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 2.49,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "density",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "pressure_tap_start_500mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 0.5,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure"
+        ]
+      },
+      {
+        "name": "pressure_tap_end_500mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.5,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure"
+        ]
+      },
+      {
+        "name": "pressure_tap_start_1490mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 1.49,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure"
+        ]
+      },
+      {
+        "name": "pressure_tap_end_1490mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 2.49,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure"
+        ]
+      },
+      {
+        "name": "cs_z_001mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 0.001,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      },
+      {
+        "name": "cs_z_2495mm",
+        "kind": "plane",
+        "method": "xy-plane",
+        "z": 2.495,
+        "destination": "contour",
+        "fields": [
+          "x-coordinate",
+          "y-coordinate",
+          "z-coordinate",
+          "pressure",
+          "total-pressure",
+          "velocity-magnitude",
+          "dynamic-pressure",
+          "total-temperature",
+          "total-energy",
+          "density",
+          "x-velocity",
+          "y-velocity",
+          "z-velocity"
+        ]
+      }
+    ],
+    "surface_reports": [
+      {
+        "name": "pressure_start_500mm",
+        "surface": "pressure_tap_start_500mm",
+        "axial_position_m": 0.5,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_500mm",
+        "surface": "pressure_tap_end_500mm",
+        "axial_position_m": 1.5,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_start_1490mm",
+        "surface": "pressure_tap_start_1490mm",
+        "axial_position_m": 1.49,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_1490mm",
+        "surface": "pressure_tap_end_1490mm",
+        "axial_position_m": 2.49,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_start_10mm",
+        "surface": "pressure_tap_start_10mm",
+        "axial_position_m": 0.01,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_10mm",
+        "surface": "pressure_tap_end_10mm",
+        "axial_position_m": 2.49,
+        "field": "pressure",
+        "report_type": "surface-areaavg",
+        "units": "Pa"
+      }
+    ],
+    "surface_integrals": [
+      {
+        "name": "pressure_start_10mm",
+        "surface": "pressure_tap_start_10mm",
+        "axial_position_m": 0.01,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_10mm",
+        "surface": "pressure_tap_end_10mm",
+        "axial_position_m": 2.49,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_start_500mm",
+        "surface": "pressure_tap_start_500mm",
+        "axial_position_m": 0.5,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_500mm",
+        "surface": "pressure_tap_end_500mm",
+        "axial_position_m": 1.5,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_start_1490mm",
+        "surface": "pressure_tap_start_1490mm",
+        "axial_position_m": 1.49,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      },
+      {
+        "name": "pressure_end_1490mm",
+        "surface": "pressure_tap_end_1490mm",
+        "axial_position_m": 2.49,
+        "field": "pressure",
+        "integral_type": "area-weighted-average",
+        "units": "Pa"
+      }
+    ],
+    "flow_summary": {
+      "start_surface": "pressure_tap_start_10mm",
+      "end_surface": "pressure_tap_end_10mm",
+      "start_axial_position_m": 0.01,
+      "end_axial_position_m": 2.49,
+      "hydraulic_diameter_m": 0.032,
+      "pressure_field": "pressure",
+      "density_field": "density",
+      "velocity_field": "z-velocity",
+      "dynamic_viscosity_pa_s": 1.8e-05,
+      "cell_count": null,
+      "output_filename": "flow-summary.csv"
+    },
+    "particle_fields": [
+      "dpm-vel-mag",
+      "dpm-diam",
+      "dpm-concentration",
+      "dpm-particles-in-cell"
+    ],
+    "axial_averages": [
+      {
+        "surface": "cs_z_001mm",
+        "z": 0.001
+      },
+      {
+        "surface": "cs_z_060mm",
+        "z": 0.06
+      },
+      {
+        "surface": "cs_z_250mm",
+        "z": 0.25
+      },
+      {
+        "surface": "cs_z_495mm",
+        "z": 0.495
+      },
+      {
+        "surface": "cs_z_1000mm",
+        "z": 1.0
+      },
+      {
+        "surface": "cs_z_2000mm",
+        "z": 2.0
+      },
+      {
+        "surface": "cs_z_2495mm",
+        "z": 2.495
+      }
+    ]
+  },
+  "plotting": {
+    "line_plots": [
+      {
+        "source": "Line_data/central-line.csv",
+        "x": "z-coordinate",
+        "y": [
+          "total-pressure",
+          "velocity-magnitude",
+          "total-temperature",
+          "dynamic-pressure"
+        ],
+        "x_label": "Axial position (m)",
+        "y_label": "Value",
+        "title": "Steel baseline sim-8-01-11-09: centreline",
+        "filename": "central-line.png"
+      },
+      {
+        "source": "Line_data/line8-2495mm.csv",
+        "x": "y-coordinate",
+        "y": [
+          "total-pressure",
+          "velocity-magnitude"
+        ],
+        "x_label": "Transverse position (m)",
+        "y_label": "Value",
+        "title": "Steel baseline sim-8-01-11-09: outlet profile",
+        "filename": "outlet-profile.png"
+      }
+    ],
+    "contour_plots": [
+      {
+        "source": "Contour_data/cs_z_495mm.csv",
+        "x": "x-coordinate",
+        "y": "y-coordinate",
+        "value": "total-pressure",
+        "title": "Steel baseline sim-8-01-11-09: total pressure at 495 mm",
+        "colorbar_label": "Total pressure (Pa)",
+        "filename": "cs-z-495mm-total-pressure.png"
+      },
+      {
+        "source": "Contour_data/cs_z_2460mm.csv",
+        "x": "x-coordinate",
+        "y": "y-coordinate",
+        "value": "velocity-magnitude",
+        "title": "Steel baseline sim-8-01-11-09: velocity near outlet",
+        "colorbar_label": "Velocity (m/s)",
+        "filename": "cs-z-2460mm-velocity.png"
+      }
+    ],
+    "dpm_analysis": {
+      "fluid_mu_Pas": 1.8e-05,
+      "particle_density_kgm3": 7800.0,
+      "stokes_L_char_m": 0.032,
+      "hose_diam_m": 0.032,
+      "mdot_p_kg_s": 0.06944,
+      "dpi": 300,
+      "xy_bins": 100,
+      "static_overlays": true
+    }
+  }
+}

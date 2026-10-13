@@ -7,6 +7,7 @@ snapshot, not a reconstruction of the transient history. fp_drag is acceleration
 """
 from pathlib import Path
 import re
+import warnings
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -857,6 +858,182 @@ def diameter_binned_stats(df_dpm: pd.DataFrame, out_csv: Path, *, n_bins=8):
     pd.DataFrame(rows).to_csv(out_csv, index=False)
 
 
+def _particle_size_rows(name: str, df: pd.DataFrame, min_diameter: float, floor_tol: float):
+    """Summarize the sampled diameter distribution and mass represented."""
+    d = pd.to_numeric(df["diameter"], errors="coerce")
+    parcel_mass = pd.to_numeric(df["parcel-mass"], errors="coerce")
+    valid = np.isfinite(d) & (d > 0) & np.isfinite(parcel_mass) & (parcel_mass >= 0)
+    if not valid.any():
+        return [], {"plane": name, "status": "no_valid_diameters", "sample_rows": len(df)}
+    work = pd.DataFrame({"diameter_m": d[valid], "parcel_mass_kg": parcel_mass[valid]})
+    grouped = work.groupby("diameter_m", sort=True).agg(
+        sample_rows=("diameter_m", "size"), parcel_mass_sum_kg=("parcel_mass_kg", "sum")
+    ).reset_index()
+    total_mass = float(grouped["parcel_mass_sum_kg"].sum())
+    grouped["parcel_mass_fraction"] = (
+        grouped["parcel_mass_sum_kg"] / total_mass if total_mass > 0 else np.nan
+    )
+    grouped.insert(0, "plane", name)
+    floor_mask = d[valid] <= min_diameter * (1.0 + floor_tol)
+    summary = {
+        "plane": name,
+        "status": "ok",
+        "sample_rows": int(valid.sum()),
+        "unique_diameters": int(work["diameter_m"].nunique()),
+        "diameter_min_m": float(work["diameter_m"].min()),
+        "diameter_max_m": float(work["diameter_m"].max()),
+        "diameter_number_mean_m": float(work["diameter_m"].mean()),
+        "diameter_parcel_mass_weighted_mean_m": (
+            float(np.average(work["diameter_m"], weights=work["parcel_mass_kg"]))
+            if total_mass > 0 else np.nan
+        ),
+        "fraction_rows_at_injection_floor": float(floor_mask.mean()),
+        "fraction_parcel_mass_at_injection_floor": (
+            float(work.loc[floor_mask, "parcel_mass_kg"].sum() / total_mass)
+            if total_mass > 0 else np.nan
+        ),
+        "sampled_parcel_mass_sum_kg": total_mass,
+    }
+    return grouped.to_dict("records"), summary
+
+
+def _dpm_momentum_window(
+    name: str,
+    df: pd.DataFrame,
+    *,
+    window_start: float,
+    window_end: float,
+) -> dict:
+    """Estimate DPM mass and axial momentum crossing rates from sampled parcels.
+
+    Fluent trajectory samples contain one parcel mass and velocity per recorded
+    plane crossing. Summing m*|u_z| over crossings and dividing by the common
+    sampling window gives the axial particle momentum flux (N). The signed mass
+    flux is also reported to reveal any reverse crossings.
+    """
+    dt = max(window_end - window_start, 0.0)
+    frame = df.copy()
+    t = pd.to_numeric(frame["flow-time"], errors="coerce")
+    mask = np.isfinite(t) & (t >= window_start) & (t <= window_end)
+    frame = frame.loc[mask]
+    mass = pd.to_numeric(frame["parcel-mass"], errors="coerce").to_numpy(dtype=float)
+    uz = pd.to_numeric(frame["w"], errors="coerce").to_numpy(dtype=float)
+    good = np.isfinite(mass) & (mass >= 0) & np.isfinite(uz)
+    mass, uz = mass[good], uz[good]
+    forward = uz > 0
+    reverse = uz < 0
+    return {
+        "plane": name,
+        "window_start_s": window_start,
+        "window_end_s": window_end,
+        "window_duration_s": dt,
+        "crossing_events": int(good.sum()),
+        "forward_events": int(forward.sum()),
+        "reverse_events": int(reverse.sum()),
+        "dpm_net_mass_flow_kg_s": (
+            float(np.sum(mass * np.sign(uz)) / dt) if dt > 0 else np.nan
+        ),
+        "dpm_axial_momentum_flux_N": (
+            float(np.sum(mass * np.abs(uz)) / dt) if dt > 0 else np.nan
+        ),
+        "dpm_parcel_mass_crossed_kg": float(np.sum(mass)),
+    }
+
+
+def _dpm_momentum_time_bins(name: str, df: pd.DataFrame, bin_width_s: float) -> list[dict]:
+    """Build equal-duration crossing-rate bins for transient stationarity checks."""
+    if bin_width_s <= 0 or df.empty:
+        return []
+    t = pd.to_numeric(df["flow-time"], errors="coerce")
+    mass = pd.to_numeric(df["parcel-mass"], errors="coerce")
+    uz = pd.to_numeric(df["w"], errors="coerce")
+    work = pd.DataFrame({"time": t, "parcel_mass": mass, "uz": uz}).dropna()
+    work = work.loc[(work["parcel_mass"] >= 0) & (work["time"] >= 0)]
+    if work.empty:
+        return []
+    work["bin"] = np.floor(work["time"] / bin_width_s).astype(int)
+    work["signed_mass"] = work["parcel_mass"] * np.sign(work["uz"])
+    work["axial_momentum"] = work["parcel_mass"] * np.abs(work["uz"])
+    rows = []
+    for bin_id, group in work.groupby("bin", sort=True):
+        start = float(bin_id) * bin_width_s
+        end = start + bin_width_s
+        rows.append({
+            "plane": name,
+            "window_start_s": start,
+            "window_end_s": end,
+            "window_duration_s": bin_width_s,
+            "crossing_events": int(len(group)),
+            "dpm_net_mass_flow_kg_s": float(group["signed_mass"].sum() / bin_width_s),
+            "dpm_axial_momentum_flux_N": float(group["axial_momentum"].sum() / bin_width_s),
+        })
+    return rows
+
+
+def _plot_size_distributions(distributions: pd.DataFrame, out_png: Path) -> None:
+    if distributions.empty:
+        return
+    figure, axis = plt.subplots(figsize=(9, 5.5))
+    for name, group in distributions.groupby("plane", sort=False):
+        positive = group["diameter_m"] > 0
+        if positive.any():
+            axis.plot(group.loc[positive, "diameter_m"],
+                      group.loc[positive, "parcel_mass_fraction"],
+                      marker="o", markersize=3, label=name)
+    axis.set_xscale("log")
+    axis.set_xlabel("Droplet diameter [m]")
+    axis.set_ylabel("Fraction of sampled parcel mass")
+    axis.set_title("DPM droplet size distribution by axial station")
+    axis.grid(True, which="both", alpha=0.25)
+    axis.legend(ncol=2, fontsize=8)
+    figure.tight_layout()
+    figure.savefig(out_png, dpi=DPI)
+    plt.close(figure)
+
+
+def _plot_momentum_flux(frame: pd.DataFrame, out_png: Path) -> None:
+    if frame.empty or "z_m" not in frame:
+        return
+    figure, axis = plt.subplots(figsize=(9, 5.5))
+    for column, label in (
+        ("gas_pressure_force_N", "Gas pressure term"),
+        ("gas_convective_axial_momentum_flux_N", "Gas convective term"),
+        ("dpm_axial_momentum_flux_N", "Droplet momentum flux"),
+        ("combined_axial_momentum_flux_N", "Combined flux diagnostic"),
+    ):
+        if column in frame and pd.to_numeric(frame[column], errors="coerce").notna().any():
+            axis.plot(frame["z_m"], frame[column], marker="o", label=label)
+    axis.set_xlabel("Axial position z [m]")
+    axis.set_ylabel("Axial momentum-flux term [N]")
+    axis.set_title("Gas and droplet axial momentum flux by plane")
+    axis.grid(True, alpha=0.25)
+    axis.legend()
+    figure.tight_layout()
+    figure.savefig(out_png, dpi=DPI)
+    plt.close(figure)
+
+
+def _plot_dpm_flux_history(frame: pd.DataFrame, out_png: Path) -> None:
+    if frame.empty:
+        return
+    frame = frame.copy()
+    frame["window_midpoint_s"] = (frame["window_start_s"] + frame["window_end_s"]) / 2
+    figure, axes = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+    for name, group in frame.groupby("plane", sort=False):
+        axes[0].plot(group["window_midpoint_s"], group["dpm_net_mass_flow_kg_s"], marker=".", label=name)
+        axes[1].plot(group["window_midpoint_s"], group["dpm_axial_momentum_flux_N"], marker=".", label=name)
+    axes[0].set_ylabel("DPM mass flow [kg/s]")
+    axes[1].set_ylabel("DPM axial momentum flux [N]")
+    axes[1].set_xlabel("Flow time [s]")
+    for axis in axes:
+        axis.grid(True, alpha=0.25)
+    axes[0].legend(ncol=3, fontsize=8)
+    figure.suptitle("DPM crossing flux time history")
+    figure.tight_layout()
+    figure.savefig(out_png, dpi=DPI)
+    plt.close(figure)
+
+
 
 def read_fluent_dpm_text_table(path: Path) -> pd.DataFrame:
     """Read 13-column Fluent Sample rows, retaining the full injection/particle ID.
@@ -907,6 +1084,22 @@ def run_dpm_analysis(config, artifacts):
     status = []
     rows = []
     combined = []
+    size_distribution_rows = []
+    size_summary_rows = []
+    dpm_flux_rows = []
+    dpm_flux_time_rows = []
+    size_by_id = {}
+    min_diameter = float(options.get("minimum_diameter_m", 0.0))
+    floor_tol = float(options.get("dpm_size_floor_relative_tolerance", 1e-3))
+    size_station = str(options.get("injection_validation_station", "cs_z_005mm"))
+    min_unique = int(options.get("minimum_unique_diameters_expected", 2))
+    simulation_end = float(options.get("simulation_duration_s", 0.0))
+    momentum_window = float(options.get("momentum_window_s", 0.5))
+    momentum_bin = float(options.get("momentum_time_bin_s", 0.25))
+    if min_diameter < 0 or floor_tol < 0 or min_unique < 1 or momentum_window <= 0 or momentum_bin <= 0:
+        raise ConfigError("invalid DPM size-validation or momentum-window settings")
+    window_end = simulation_end
+    window_start = max(0.0, window_end - momentum_window)
     with plt.rc_context({"savefig.dpi": DPI}):
         for path in sorted(artifacts.line_data.glob("*.csv")):
             x = "z-coordinate" if path.stem == "central-line" else "y-coordinate"
@@ -933,7 +1126,31 @@ def run_dpm_analysis(config, artifacts):
             dpm = read_fluent_dpm_text_table(path)
             if dpm.empty:
                 status.append({"station": name, "status": "no_particle_crossings", "sample_rows": 0})
+                size_summary_rows.append({"plane": name, "status": "no_particle_crossings", "sample_rows": 0})
+                dpm_flux_rows.append(_dpm_momentum_window(
+                    name, dpm, window_start=window_start, window_end=window_end
+                ))
+                dpm_flux_time_rows.extend(_dpm_momentum_time_bins(name, dpm, momentum_bin))
                 continue
+            distribution, size_summary = _particle_size_rows(
+                name, dpm, min_diameter, floor_tol
+            )
+            size_distribution_rows.extend(distribution)
+            size_summary_rows.append(size_summary)
+            dpm_flux_rows.append(_dpm_momentum_window(
+                name, dpm, window_start=window_start, window_end=window_end
+            ))
+            dpm_flux_time_rows.extend(_dpm_momentum_time_bins(name, dpm, momentum_bin))
+            if "particle-id" in dpm:
+                size_by_id[name] = dpm[["particle-id", "diameter", "flow-time"]].copy()
+            if name == size_station and size_summary.get("unique_diameters", 0) < min_unique:
+                warning = (
+                    f"DPM size check at {name} found {size_summary.get('unique_diameters', 0)} "
+                    f"unique diameter(s), expected at least {min_unique}; inspect the active "
+                    "Fluent injection and its reported diameter statistics before trusting the run."
+                )
+                warnings.warn(warning)
+                size_summary["status"] = "warning_size_distribution_not_resolved"
             add_dpm_derived_columns(dpm, rho_p=rho_p, mu=mu, L_char=length)
             make_dpm_heatmaps(dpm, mkdir(out / "heatmaps"), name)
             for metric in ("velmag_p", "diameter", "ke_p"):
@@ -994,6 +1211,84 @@ def run_dpm_analysis(config, artifacts):
             rows.append(row)
         pd.DataFrame(status).to_csv(tables / "sampling_status.csv", index=False)
         pd.DataFrame(rows).to_csv(tables / "particle_properties_by_plane.csv", index=False)
+        size_distribution = pd.DataFrame(size_distribution_rows)
+        size_summary = pd.DataFrame(size_summary_rows)
+        dpm_flux = pd.DataFrame(dpm_flux_rows)
+        size_distribution.to_csv(tables / "droplet_size_distribution_by_plane.csv", index=False)
+        size_summary.to_csv(tables / "droplet_size_validation_by_plane.csv", index=False)
+        dpm_flux.to_csv(tables / "dpm_momentum_flux_by_plane.csv", index=False)
+        dpm_flux_time = pd.DataFrame(dpm_flux_time_rows)
+        dpm_flux_time.to_csv(tables / "dpm_momentum_flux_by_time.csv", index=False)
+        if not dpm_flux_time.empty:
+            _plot_dpm_flux_history(dpm_flux_time, out / "dpm_momentum_flux_time_history.png")
+        if not size_distribution.empty:
+            _plot_size_distributions(size_distribution, out / "droplet_size_distribution_by_plane.png")
+
+        # Compare the injected-size sample against each downstream plane using
+        # Fluent's stable injection/particle identifier. This is the direct test
+        # for shrinkage; plane-wide histograms alone cannot establish it.
+        size_change_rows = []
+        if size_station in size_by_id:
+            reference = size_by_id[size_station].sort_values("flow-time").drop_duplicates(
+                "particle-id", keep="first"
+            )
+            reference = reference.rename(columns={
+                "diameter": "diameter_at_validation_station_m",
+                "flow-time": "flow_time_at_validation_station_s",
+            })
+            for name, tracked in size_by_id.items():
+                if name == size_station:
+                    continue
+                current = tracked.sort_values("flow-time").drop_duplicates(
+                    "particle-id", keep="first"
+                ).rename(columns={
+                    "diameter": "diameter_at_plane_m",
+                    "flow-time": "flow_time_at_plane_s",
+                })
+                matched = reference.merge(current, on="particle-id", how="inner")
+                ratio = matched["diameter_at_plane_m"] / matched["diameter_at_validation_station_m"]
+                size_change_rows.append({
+                    "plane": name,
+                    "matched_parcels": int(len(matched)),
+                    "diameter_ratio_mean": float(ratio.mean()) if len(ratio) else np.nan,
+                    "diameter_ratio_median": float(ratio.median()) if len(ratio) else np.nan,
+                    "diameter_ratio_min": float(ratio.min()) if len(ratio) else np.nan,
+                    "diameter_ratio_max": float(ratio.max()) if len(ratio) else np.nan,
+                    "fraction_with_diameter_decrease": float((ratio < 1.0 - 1e-6).mean()) if len(ratio) else np.nan,
+                    "fraction_with_diameter_increase": float((ratio > 1.0 + 1e-6).mean()) if len(ratio) else np.nan,
+                })
+        pd.DataFrame(size_change_rows).to_csv(tables / "droplet_diameter_change_by_plane.csv", index=False)
+
+        # Combine the final carrier snapshot flux with time-windowed parcel
+        # crossings. The result is deliberately named a flux diagnostic: a
+        # closed balance also needs wall forces and transient momentum storage.
+        gas_path = artifacts.data_export / str(options.get(
+            "momentum_flux_output", "gas_momentum_flux_by_plane.csv"
+        ))
+        if gas_path.is_file() and not dpm_flux.empty:
+            gas_flux = pd.read_csv(gas_path)
+            if "status" in gas_flux:
+                gas_flux = gas_flux.loc[gas_flux["status"] == "ok"]
+            gas_flux = gas_flux.rename(columns={"surface": "plane", "z_m": "z_m"})
+            momentum = gas_flux.merge(dpm_flux, on="plane", how="outer")
+            momentum["combined_axial_momentum_flux_N"] = (
+                pd.to_numeric(momentum.get("gas_axial_momentum_flux_N"), errors="coerce")
+                + pd.to_numeric(momentum.get("dpm_axial_momentum_flux_N"), errors="coerce")
+            )
+            momentum = momentum.sort_values("z_m")
+            momentum["combined_flux_change_from_previous_plane_N"] = momentum[
+                "combined_axial_momentum_flux_N"
+            ].diff()
+            momentum["comparison_note"] = (
+                "Final carrier snapshot plus time-windowed DPM crossings; not a closed CV balance."
+            )
+            momentum.to_csv(tables / "gas_dpm_momentum_flux_diagnostic.csv", index=False)
+            _plot_momentum_flux(momentum, out / "gas_dpm_momentum_flux_by_plane.png")
+        else:
+            warnings.warn(
+                f"Could not combine gas and DPM momentum fluxes; missing {gas_path.name} "
+                "or no DPM plane data."
+            )
         if combined:
             all_rows = pd.concat(combined, ignore_index=True)
             for metric in ("Re_p", "St"):

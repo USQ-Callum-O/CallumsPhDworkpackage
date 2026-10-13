@@ -287,6 +287,101 @@ def _area_weighted_average(
     return _report_value(result, surface_name)
 
 
+def _area_integral_expression(session: Any, expression: str, surface_name: str) -> float:
+    """Evaluate an arbitrary Fluent expression over a named surface."""
+
+    reduction = getattr(getattr(session, "fields", None), "reduction", None)
+    area_integral = getattr(reduction, "area_integral", None)
+    if area_integral is None:
+        raise ConfigError(
+            "This PyFluent version does not expose fields.reduction.area_integral; "
+            "upgrade PyFluent or export this momentum integral directly in Fluent."
+        )
+    result = area_integral(expression=expression, locations=[surface_name])
+    return _report_value(result, surface_name)
+
+
+def _write_momentum_flux(
+    session: Any,
+    artifacts: RunArtifacts,
+    raw: Any,
+) -> None:
+    """Write carrier-gas mass and axial momentum fluxes at configured planes.
+
+    For an axial plane, the gas axial momentum flux is the sum of the static-
+    pressure force and convective contribution integral(rho * uz**2 dA).
+    Pressure is exported as gauge static pressure; its constant reference
+    cancels when comparing equal-area hose planes.
+    """
+
+    if raw is None:
+        return
+    if not isinstance(raw, Mapping):
+        raise ConfigError("export.momentum_flux must be an object")
+    surfaces = raw.get("surfaces")
+    if not isinstance(surfaces, list) or not surfaces:
+        raise ConfigError("export.momentum_flux.surfaces must be a non-empty list")
+    filename = str(raw.get("output_filename", "gas_momentum_flux_by_plane.csv"))
+    if not SAFE_EXPORT_NAME.fullmatch(filename) or Path(filename).suffix.lower() != ".csv":
+        raise ConfigError(f"invalid momentum-flux filename: {filename!r}")
+    p_expr = str(raw.get("pressure_expression", "StaticPressure"))
+    mdot_expr = str(raw.get("gas_mass_flux_expression", "Density*Velocity.z"))
+    mom_expr = str(
+        raw.get(
+            "gas_convective_axial_momentum_expression",
+            "Density*Velocity.z*Velocity.z",
+        )
+    )
+    rows = []
+    for index, spec in enumerate(surfaces, start=1):
+        if not isinstance(spec, Mapping):
+            raise ConfigError(f"export.momentum_flux.surfaces[{index}] must be an object")
+        name = str(spec.get("surface", ""))
+        if not SAFE_EXPORT_NAME.fullmatch(name):
+            raise ConfigError(f"invalid momentum-flux surface name: {name!r}")
+        try:
+            reduction = getattr(getattr(session, "fields", None), "reduction", None)
+            area_method = getattr(reduction, "area", None)
+            if area_method is None:
+                raise ConfigError("PyFluent fields.reduction.area is unavailable")
+            area = _report_value(area_method(locations=[name]), name)
+            pressure_force = _area_integral_expression(session, p_expr, name)
+            gas_mass_flow = _area_integral_expression(session, mdot_expr, name)
+            gas_convective = _area_integral_expression(session, mom_expr, name)
+        except Exception as exc:
+            # Preserve the normal surface exports if a site PyFluent build does
+            # not support one of the expression reductions. The explicit error
+            # is included in a status row rather than silently approximating
+            # these fluxes from area averages.
+            rows.append({
+                "surface": name,
+                "z_m": float(spec.get("z_m", float("nan"))),
+                "status": f"integral_failed: {type(exc).__name__}: {exc}",
+                "area_m2": float("nan"),
+                "gas_mass_flow_kg_s": float("nan"),
+                "pressure_force_N": float("nan"),
+                "gas_convective_axial_momentum_flux_N": float("nan"),
+                "gas_axial_momentum_flux_N": float("nan"),
+            })
+            continue
+        rows.append({
+            "surface": name,
+            "z_m": float(spec.get("z_m", float("nan"))),
+            "status": "ok",
+            "area_m2": area,
+            "gas_mass_flow_kg_s": gas_mass_flow,
+            "pressure_force_N": pressure_force,
+            "gas_convective_axial_momentum_flux_N": gas_convective,
+            "gas_axial_momentum_flux_N": pressure_force + gas_convective,
+        })
+    output = artifacts.data_export / filename
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def _write_flow_summary(
     session: Any,
     config: SimulationConfig,
@@ -410,6 +505,7 @@ def run_export(
     surface_reports = config.export.get("surface_reports", [])
     surface_integrals = config.export.get("surface_integrals", [])
     flow_summary = config.export.get("flow_summary")
+    momentum_flux = config.export.get("momentum_flux")
     operations = config.export.get("operations", [])
     if (
         not isinstance(exports, list)
@@ -452,6 +548,7 @@ def run_export(
         # The flow summary is independent of the optional pressure-method
         # comparison, so write it first.
         _write_flow_summary(session, config, artifacts, flow_summary)
+        _write_momentum_flux(session, artifacts, momentum_flux)
         _write_pressure_method_comparison(
             session,
             artifacts,
