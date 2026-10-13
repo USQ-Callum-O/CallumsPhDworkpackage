@@ -523,7 +523,7 @@
           "film_condition_type": "film-wall-initial",
           "film_height": {
             "option": "value",
-            "value": 0.0
+            "value": 3e-06
           },
           "film_temperature": {
             "option": "value",
@@ -564,7 +564,7 @@
           "film_condition_type": "film-wall-initial",
           "film_height": {
             "option": "value",
-            "value": 0.0
+            "value": 3e-6
           },
           "film_temperature": {
             "option": "value",
@@ -605,7 +605,7 @@
           "film_condition_type": "film-wall-initial",
           "film_height": {
             "option": "value",
-            "value": 0.0
+            "value": 3e-6
           },
           "film_temperature": {
             "option": "value",
