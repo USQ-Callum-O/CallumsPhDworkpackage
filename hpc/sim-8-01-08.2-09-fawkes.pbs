@@ -35,7 +35,7 @@ export I_MPI_FABRICS=shm
 export MPLBACKEND=Agg
 
 CONFIG="${CONFIG:-configs/sim-8-01-08.2-09.fawkes.json}"
-STAGES="${STAGES:-export+plot}"
+STAGES="${STAGES:-solve-export+plot}"
 
 IFS='+' read -r -a STAGE_ARRAY <<< "$STAGES"
 
