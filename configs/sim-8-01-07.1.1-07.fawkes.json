@@ -1286,6 +1286,7 @@
       }
     ],
     "flow_summary": {
+      "method_name": "static_pressure_0p01m_to_2p49m_surface_average",
       "start_surface": "pressure_tap_start_10mm",
       "end_surface": "pressure_tap_end_10mm",
       "start_axial_position_m": 0.01,
@@ -1296,6 +1297,44 @@
       "velocity_field": "z-velocity",
       "dynamic_viscosity_pa_s": 0.000018606542261347473,
       "cell_count": null,
+      "additional_rows": [
+        {
+          "method_name": "total_pressure_0p01m_to_2p49m_surface_average",
+          "pressure_field": "total-pressure"
+        },
+        {
+          "method_name": "static_pressure_0p5m_to_1p5m_surface_average",
+          "start_surface": "pressure_tap_start_500mm",
+          "end_surface": "pressure_tap_end_500mm",
+          "start_axial_position_m": 0.5,
+          "end_axial_position_m": 1.5
+        },
+        {
+          "method_name": "static_pressure_1m_to_2m_surface_average",
+          "start_surface": "cs_z_1000mm",
+          "end_surface": "cs_z_2000mm",
+          "start_axial_position_m": 1.0,
+          "end_axial_position_m": 2.0
+        },
+        {
+          "method_name": "static_pressure_1p5m_to_2p39m_surface_average",
+          "start_surface": "pressure_tap_end_500mm",
+          "end_surface": "pressure_tap_2390mm",
+          "start_axial_position_m": 1.5,
+          "end_axial_position_m": 2.39,
+          "end_surface_definition": {
+            "name": "pressure_tap_2390mm",
+            "kind": "plane",
+            "method": "xy-plane",
+            "z": 2.39
+          }
+        },
+        {
+          "method_name": "static_pressure_0p01m_to_2p49m_volume_average",
+          "fluid_property_average_method": "volume-average",
+          "fluid_property_cell_zone": "hose-solid"
+        }
+      ],
       "output_filename": "flow-summary.csv"
     }
   },
