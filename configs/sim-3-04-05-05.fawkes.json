@@ -3,7 +3,7 @@
   "simulation": {
     "id": "sim-3",
     "category": "hose",
-    "versions": {"mesh": "04", "solver": "04", "post": "05"}
+    "versions": {"mesh": "04", "solver": "05", "post": "05"}
   },
   "metadata": {
     "purpose": "Simulation 3.05 split-stage migration and reusable inlet-profile source case. This modifies the previous case to simulate the 120PSI case. updated mass flow calculated using DC=0.991 and choked flow equation",
