@@ -21,10 +21,10 @@ echo "============================================================"
 cd "${PBS_O_WORKDIR:?PBS_O_WORKDIR is not set}"
 
 module purge
-python --version
+module avail python
 module load python/3.11.6-gcc-mzj
+python --version
 module list
-
 module load ansys/2025r1
 
 source .venv/bin/activate
