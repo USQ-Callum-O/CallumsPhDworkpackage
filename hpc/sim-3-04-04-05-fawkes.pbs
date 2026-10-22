@@ -21,6 +21,8 @@ echo "============================================================"
 cd "${PBS_O_WORKDIR:?PBS_O_WORKDIR is not set}"
 
 module purge
+echo "MODULEPATH=$MODULEPATH"
+module avail python 2>&1 || true
 module avail python
 module load python/3.11.6-gcc-mzj
 python --version
