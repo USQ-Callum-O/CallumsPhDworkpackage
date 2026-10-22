@@ -1,0 +1,21 @@
+#!/bin/bash -l
+
+#PBS -N Python_test
+#PBS -l select=1:ncpus=9:mem=128gb
+#PBS -l walltime=24:00:00
+#PBS -l software=ansys
+#PBS -j oe
+#PBS -q default
+#PBS -M u1173289@usq.edu.au
+#PBS -P Callum_Ogilvies.PhD
+
+set -Eeuo pipefail
+echo "============================================================"
+echo "Testing python loading
+echo "Submission directory: ${PBS_O_WORKDIR:-not-set}"
+echo "============================================================"
+
+echo "MODULEPATH=$MODULEPATH"
+module avail python 2>&1 || true
+module load python/3.11.6-gcc-mzj
+python --version
