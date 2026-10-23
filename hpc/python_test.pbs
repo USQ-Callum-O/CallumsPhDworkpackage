@@ -11,7 +11,7 @@
 
 set -Eeuo pipefail
 echo "============================================================"
-echo "Testing python loading
+echo "Testing python loading"
 echo "Submission directory: ${PBS_O_WORKDIR:-not-set}"
 echo "============================================================"
 
