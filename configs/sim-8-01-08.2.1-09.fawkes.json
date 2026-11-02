@@ -781,7 +781,7 @@
         "kwargs": {
           "domain": "mixture",
           "cell_zones": [
-            "hose-solid"
+            "hose-hose"
           ],
           "variable": "species-0",
           "value": 0.0072
@@ -2304,7 +2304,7 @@
         {
           "method_name": "static_pressure_0p01m_to_2p49m_volume_average",
           "fluid_property_average_method": "volume-average",
-          "fluid_property_cell_zone": "hose-solid"
+          "fluid_property_cell_zone": "hose-hose"
         }
       ],
       "output_filename": "flow-summary.csv"
