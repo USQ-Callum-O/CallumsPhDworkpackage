@@ -435,62 +435,22 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.1/momentum/wall_motion",
+        "path": "settings/setup/boundary_conditions/@wall/momentum/wall_motion",
         "value": "Stationary Wall"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.1/momentum/shear_condition",
+        "path": "settings/setup/boundary_conditions/@wall/momentum/shear_condition",
         "value": "No Slip"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.1/thermal/material",
+        "path": "settings/setup/boundary_conditions/@wall/thermal/material",
         "value": "rubber-natural-custim"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.1/turbulence/roughness_height",
-        "value": 1.6e-05
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.2/momentum/wall_motion",
-        "value": "Stationary Wall"
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.2/momentum/shear_condition",
-        "value": "No Slip"
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.2/thermal/material",
-        "value": "rubber-natural-custim"
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.2/turbulence/roughness_height",
-        "value": 6e-06
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.3/momentum/wall_motion",
-        "value": "Stationary Wall"
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.3/momentum/shear_condition",
-        "value": "No Slip"
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.3/thermal/material",
-        "value": "rubber-natural-custim"
-      },
-      {
-        "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall.1.3/turbulence/roughness_height",
+        "path": "settings/setup/boundary_conditions/@wall/turbulence/roughness_height",
         "value": 1.6e-05
       },
       {
