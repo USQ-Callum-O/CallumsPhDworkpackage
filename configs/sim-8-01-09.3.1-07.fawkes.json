@@ -502,7 +502,7 @@
       },
       {
         "action": "patch",
-        "path": "settings/setup/boundary_conditions/@wall/momentum/shear_condition",
+        "path": "settings/setup/boundary_conditions/@wall/wall_film",
         "value": {
           "eulerian_film_wall": true,
           "film_condition_type": "film-wall-initial",
@@ -587,7 +587,7 @@
         "kwargs": {
           "domain": "mixture",
           "cell_zones": [
-            "hose-solid"
+            "hose-hose"
           ],
           "variable": "species-0",
           "value": 0.0072
