@@ -388,7 +388,7 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/cell_zone_conditions/fluid/@hose-solid/general/material",
+        "path": "settings/setup/cell_zone_conditions/fluid/@hose-hose/general/material",
         "value": "humid-air"
       },
       {
