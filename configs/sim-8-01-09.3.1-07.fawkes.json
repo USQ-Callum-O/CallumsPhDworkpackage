@@ -470,12 +470,12 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/pressure_outlet/@outlet/momentum/gauge_pressure",
+        "path": "settings/setup/boundary_conditions/pressure_outlet/@outflow/momentum/gauge_pressure",
         "value": 588150.7293168
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/pressure_outlet/@outlet/momentum/prevent_reverse_flow",
+        "path": "settings/setup/boundary_conditions/pressure_outlet/@outflow/momentum/prevent_reverse_flow",
         "value": {
           "enabled": true
         }
