@@ -406,7 +406,7 @@
         "path": "settings/setup/boundary_conditions/set_zone_type",
         "kwargs": {
           "zone_list": [
-            "outlet"
+            "outflow"
           ],
           "new_type": "pressure-outlet"
         }

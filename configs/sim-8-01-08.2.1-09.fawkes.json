@@ -435,22 +435,22 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall/momentum/wall_motion",
+        "path": "settings/setup/boundary_conditions/@Wall/momentum/wall_motion",
         "value": "Stationary Wall"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall/momentum/shear_condition",
+        "path": "settings/setup/boundary_conditions/@Wall/momentum/shear_condition",
         "value": "No Slip"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall/thermal/material",
+        "path": "settings/setup/boundary_conditions/@Wall/thermal/material",
         "value": "rubber-natural-custim"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@wall/turbulence/roughness_height",
+        "path": "settings/setup/boundary_conditions/@Wall/turbulence/roughness_height",
         "value": 1.6e-05
       },
       {
