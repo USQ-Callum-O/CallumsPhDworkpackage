@@ -158,7 +158,7 @@
       {
         "action": "set",
         "path": "settings/setup/general/solver/time",
-        "value": "unsteady-1st-order"
+        "value": "unsteady-2nd-order"
       },
       {
         "action": "set",
