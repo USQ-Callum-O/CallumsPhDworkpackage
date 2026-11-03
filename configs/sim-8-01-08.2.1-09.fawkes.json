@@ -32,7 +32,7 @@
     "input_root": "../",
     "results_root": "../../Results"
   },
-  "geometry": "Blast_hose/5000mm_streight_hose.dsco",
+  "geometry": "Blast_hose/5000mm_streight_hose_2.dsco",
   "inputs": {
     "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_plane_1300mm.prof"
   },
@@ -435,22 +435,22 @@
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@Wall/momentum/wall_motion",
+        "path": "settings/setup/boundary_conditions/@wall/momentum/wall_motion",
         "value": "Stationary Wall"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@Wall/momentum/shear_condition",
+        "path": "settings/setup/boundary_conditions/@wall/momentum/shear_condition",
         "value": "No Slip"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@Wall/thermal/material",
+        "path": "settings/setup/boundary_conditions/@wall/thermal/material",
         "value": "rubber-natural-custim"
       },
       {
         "action": "set",
-        "path": "settings/setup/boundary_conditions/@Wall/turbulence/roughness_height",
+        "path": "settings/setup/boundary_conditions/@wall/turbulence/roughness_height",
         "value": 1.6e-05
       },
       {

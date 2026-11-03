@@ -25,7 +25,7 @@
     "input_root": "../",
     "results_root": "../../Results"
   },
-  "geometry": "Blast_hose/1300mm_streight_hose.dsco",
+  "geometry": "Blast_hose/1300mm_streight_hose_2.dsco",
   "inputs": {
     "inlet_profile": "../Results/Hose_simulations/sim-3-04-03-05/Data_export/Profile_data/streight_hose-3-05_test_plane_1300mm.prof"
   },
