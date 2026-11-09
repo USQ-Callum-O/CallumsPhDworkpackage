@@ -143,8 +143,12 @@ def run_resume(config, artifacts, launcher=None, *, resume_plan: ResumePlan):
         directory.mkdir(parents=True, exist_ok=False)
     (history / "resume.json").write_text(json.dumps(plan.as_dict(), indent=2) + "\n", encoding="utf-8")
     with managed_session("solver", config.launch, launcher) as session:
-        session.settings.file.read_case(file_name=str(plan.case))
-        session.settings.file.read_data(file_name=str(plan.data))
+        # Fluent 2025 R1 can fail at the end of a Settings-API data read when a
+        # saved DPM sampling option is currently inactive (notably
+        # sort-sample-files).  The TUI readers load the same checkpoint without
+        # replaying that inactive Settings-API leaf.
+        session.tui.file.read_case(str(plan.case))
+        session.tui.file.read_data(str(plan.data))
         _verify_state(session, plan.step, plan.flow_time)
         controls = session.settings.solution.run_calculation.transient_controls
         loaded_dt = float(controls.time_step_size.get_state())
