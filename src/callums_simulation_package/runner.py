@@ -203,11 +203,20 @@ def run(
     stages: Iterable[str] | None = None,
     *,
     launcher: Any = None,
+    resume_options: Mapping[str, Any] | None = None,
 ) -> RunPlan:
     """Run selected stages sequentially and record a durable manifest."""
 
     run_plan = plan(config, stages)
-    validate_plan_inputs(run_plan)
+    resume_plan = None
+    if resume_options is not None:
+        from .stages.resume import prepare_resume
+
+        if run_plan.stages[0] != "solve":
+            raise ConfigError("Resume stages must start with solve (no mesh stage)")
+        resume_plan = prepare_resume(run_plan.config, run_plan.artifacts, **resume_options)
+    else:
+        validate_plan_inputs(run_plan)
     run_plan.artifacts.create_directories()
     manifest = _manifest(run_plan)
     if run_plan.config.geometry.is_file():
@@ -225,6 +234,12 @@ def run(
             "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
         },
     }
+    if resume_plan is not None:
+        execution["resume"] = resume_plan.as_dict()
+        # A previous successful export/plot would no longer describe the resumed solution.
+        for downstream in ("export", "plot"):
+            if downstream in manifest["stages"]:
+                manifest["stages"][downstream] = {"status": "pending"}
     manifest["executions"].append(execution)
     _write_json(run_plan.artifacts.manifest, manifest)
 
@@ -235,7 +250,13 @@ def run(
             state.pop("error", None)
             state.update(status="running", started_at=_utc_now(), execution=len(manifest["executions"]))
             _write_json(run_plan.artifacts.manifest, manifest)
-            functions[stage](run_plan.config, run_plan.artifacts, launcher=launcher)
+            if stage == "solve" and resume_plan is not None:
+                from .stages.resume import run_resume
+
+                run_resume(run_plan.config, run_plan.artifacts, launcher=launcher,
+                           resume_plan=resume_plan)
+            else:
+                functions[stage](run_plan.config, run_plan.artifacts, launcher=launcher)
             state.update(status="completed", completed_at=_utc_now())
             _write_json(run_plan.artifacts.manifest, manifest)
     except Exception as exc:
