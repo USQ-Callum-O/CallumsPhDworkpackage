@@ -90,11 +90,13 @@ def record_particles(session: Any, raw: Mapping[str, Any], artifacts: Any):
     # directory explicitly: changing only the Python cwd is insufficient on HPC.
     session.chdir(artifacts.dpm_samples.as_posix())
     sample = session.settings.results.report.discrete_phase.sample_trajectories
-    sample.sort_sample_files.set_state(raw.get("sort_sample_files", True))
     sample.start_file_write(
         injections=raw["injections"], boundaries=boundaries, lines=[], planes=planes,
         append_sample=raw.get("append_sample", False),
         accumulate_rates=raw.get("accumulate_rates", True),
+        # In Fluent 2025 R1 this option is inactive as a standalone settings
+        # leaf before sampling starts.  Supply it as part of the start command.
+        sort_sample=raw.get("sort_sample_files", True),
     )
     failed = False
     try:
