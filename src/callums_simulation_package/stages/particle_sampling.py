@@ -86,10 +86,47 @@ def record_particles(session: Any, raw: Mapping[str, Any], artifacts: Any):
             "DPM samples already exist; use a fresh run directory or explicitly enable "
             "solver.dpm_sampling.append_sample to extend them"
         )
+    sample = session.settings.results.report.discrete_phase.sample_trajectories
+    start_active = sample.start_file_write.is_active()
+    stop_active = sample.stop_file_write.is_active()
+    print(
+        "DPM sampling state before restart: "
+        f"start_active={start_active}, stop_active={stop_active}"
+    )
+
+    if not start_active and stop_active:
+        # An autosaved checkpoint can preserve the fact that transient sampling
+        # was running, even though its old file handles cannot continue safely in
+        # the new Fluent process.  Stop that restored interval first.  Quarantine
+        # anything Fluent flushes so it cannot be mistaken for the new interval.
+        restored = artifacts.dpm_samples / "Restored_checkpoint_sampling"
+        restored.mkdir(parents=True, exist_ok=True)
+        session.chdir(restored.as_posix())
+        sample.stop_file_write()
+        start_active = sample.start_file_write.is_active()
+        stop_active = sample.stop_file_write.is_active()
+        print(
+            "DPM sampling state after closing restored interval: "
+            f"start_active={start_active}, stop_active={stop_active}"
+        )
+
+    if not start_active:
+        unsteady = (
+            session.settings.setup.models.discrete_phase.general_settings
+            .unsteady_tracking.enabled
+        )
+        unsteady_state = unsteady.get_state() if unsteady.is_active() else None
+        raise RuntimeError(
+            "DPM transient sampling cannot be started after checkpoint load: "
+            f"start_active={start_active}, stop_active={stop_active}, "
+            f"unsteady_tracking={unsteady_state}. "
+            "Do not toggle unsteady tracking automatically because that can alter "
+            "the restored particle state."
+        )
+
     # Sampling has no filename argument in Fluent 2025 R1. Change the server's
     # directory explicitly: changing only the Python cwd is insufficient on HPC.
     session.chdir(artifacts.dpm_samples.as_posix())
-    sample = session.settings.results.report.discrete_phase.sample_trajectories
     sample.start_file_write(
         injections=raw["injections"], boundaries=boundaries, lines=[], planes=planes,
         append_sample=raw.get("append_sample", False),
