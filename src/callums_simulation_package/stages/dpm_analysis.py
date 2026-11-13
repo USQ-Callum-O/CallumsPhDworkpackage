@@ -1065,6 +1065,75 @@ def read_fluent_dpm_text_table(path: Path) -> pd.DataFrame:
     return frame
 
 
+def _dpm_station_name(path: Path) -> str | None:
+    """Return the station for serial or parallel Fluent sample filenames."""
+    match = re.fullmatch(r"(.+)\.dpm(?:\.\d+)?", path.name)
+    return match.group(1) if match else None
+
+
+def _collect_dpm_samples(artifacts) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
+    """Recover and merge active, interval, and legacy resume sample files.
+
+    Raw files remain untouched. Exact duplicate crossings from repeated resume
+    attempts are removed after concatenation, and source provenance is returned
+    for a CSV audit table.
+    """
+    roots = [artifacts.dpm_samples]
+    intervals = artifacts.data_export / "DPM_sample_intervals"
+    if intervals.is_dir():
+        roots.extend(path for path in intervals.iterdir() if path.is_dir())
+    history = artifacts.run_root / "Resume_history"
+    if history.is_dir():
+        roots.extend(history.glob("*/DPM_samples"))
+
+    sources: dict[str, list[Path]] = {}
+    seen: set[Path] = set()
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob("*.dpm*")):
+            if not path.is_file():
+                continue
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            station = _dpm_station_name(path)
+            if station is not None:
+                sources.setdefault(station, []).append(path)
+
+    merged: dict[str, pd.DataFrame] = {}
+    audit_rows = []
+    identity = [*DPM_COLS, "particle-id"]
+    for station, paths in sorted(sources.items()):
+        frames = []
+        for path in paths:
+            frame = read_fluent_dpm_text_table(path)
+            audit_rows.append({
+                "station": station,
+                "source_file": str(path),
+                "source_rows": len(frame),
+            })
+            if not frame.empty:
+                frames.append(frame)
+        if frames:
+            combined = pd.concat(frames, ignore_index=True)
+            before = len(combined)
+            combined = combined.drop_duplicates(subset=identity).sort_values(
+                ["flow-time", "particle-id"], kind="stable"
+            ).reset_index(drop=True)
+            removed = before - len(combined)
+        else:
+            combined = pd.DataFrame(columns=[*DPM_COLS, "particle-id", "particle No."])
+            removed = 0
+        merged[station] = combined
+        for row in audit_rows:
+            if row["station"] == station:
+                row["merged_station_rows"] = len(combined)
+                row["exact_duplicates_removed_for_station"] = removed
+    return merged, pd.DataFrame(audit_rows)
+
+
 def run_dpm_analysis(config, artifacts):
     """Simulation8.1 analysis, routed through this run's configured artifact paths."""
     from ..config import ConfigError
@@ -1113,17 +1182,19 @@ def run_dpm_analysis(config, artifacts):
             plot_axial_awa_2x2(data, out / "axial_AWA_2x2.png")
             data.to_csv(tables / "axial_AWA.csv", index=False)
 
-        files = sorted(artifacts.dpm_samples.glob("*.dpm"))
-        if not files:
-            raise FileNotFoundError(f"No .dpm samples in {artifacts.dpm_samples}")
+        samples, sample_sources = _collect_dpm_samples(artifacts)
+        if not samples:
+            raise FileNotFoundError(
+                f"No DPM samples in active, interval, or resume-history directories below "
+                f"{artifacts.run_root}"
+            )
+        sample_sources.to_csv(tables / "dpm_sample_sources.csv", index=False)
         expected = {item["name"] for item in config.solver.get("dpm_sampling", {}).get("surfaces", [])}
-        present = {path.stem for path in files}
+        present = set(samples)
         missing = sorted(expected - present)
         if missing:
             raise FileNotFoundError(f"Missing configured DPM sample stations: {missing}")
-        for path in files:
-            name = path.stem
-            dpm = read_fluent_dpm_text_table(path)
+        for name, dpm in sorted(samples.items()):
             if dpm.empty:
                 status.append({"station": name, "status": "no_particle_crossings", "sample_rows": 0})
                 size_summary_rows.append({"plane": name, "status": "no_particle_crossings", "sample_rows": 0})

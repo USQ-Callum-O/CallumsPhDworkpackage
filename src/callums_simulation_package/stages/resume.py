@@ -19,7 +19,7 @@ from ..artifacts import RunArtifacts
 from ..config import ConfigError, SimulationConfig
 from ..fluent import managed_session
 from .particle_sampling import record_particles, validate_sampling
-from .solver import _autosave_settings, _configure_autosave
+from .solver import _autosave_settings
 
 
 @dataclass(frozen=True)
@@ -110,6 +110,22 @@ def prepare_resume(config: SimulationConfig, artifacts: RunArtifacts, *,
                 case = _local_file(project.parent, case_ref.attrib["value"][5:])
                 if case.is_file() and data.is_file():
                     candidates.append((step, data.stat().st_mtime_ns, case, data, flow_time))
+    # Explicit resume checkpoints are indexed independently of Fluent's .flprj
+    # files.  This makes them discoverable even when restored native autosave
+    # state is inactive or unreliable.
+    for index in sorted(artifacts.autosave.rglob("checkpoint-step-*.json")):
+        try:
+            record = json.loads(index.read_text(encoding="utf-8"))
+            step = int(record["time_step"])
+            flow_time = float(record["flow_time_s"])
+            case = _local_file(index.parent, str(record["case_file"]))
+            data = _local_file(index.parent, str(record["data_file"]))
+        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ConfigError(f"Unreadable resume checkpoint index: {index}") from exc
+        if checkpoint_step is not None and step != checkpoint_step:
+            continue
+        if case.is_file() and data.is_file():
+            candidates.append((step, data.stat().st_mtime_ns, case, data, flow_time))
     if not candidates:
         raise ConfigError(f"No matching case/data pair indexed by a .flprj in {artifacts.autosave}")
     step, _, case, data, flow_time = max(candidates, key=lambda item: item[:2])
@@ -130,6 +146,32 @@ def _verify_state(session, step, flow_time):
         raise RuntimeError(
             f"Fluent state is step {actual_step}, time {actual_time}; expected {step}, {flow_time}"
         )
+
+
+def _write_checkpoint(session, directory: Path, config, step: int, flow_time: float,
+                      case: Path, *, retain: int = 3) -> None:
+    """Write and index one data checkpoint, retaining a bounded recent history."""
+    data = directory / f"{config.run_name}-resume-{step:05d}.dat.h5"
+    session.settings.file.write_data(file_name=str(data))
+    if not data.is_file() or data.stat().st_size < 8:
+        raise RuntimeError(f"Fluent did not write the requested checkpoint data file: {data}")
+    index = directory / f"checkpoint-step-{step:05d}.json"
+    index.write_text(json.dumps({
+        "schema_version": 1,
+        "time_step": step,
+        "flow_time_s": flow_time,
+        "case_file": case.name,
+        "data_file": data.name,
+    }, indent=2) + "\n", encoding="utf-8")
+    indexes = sorted(directory.glob("checkpoint-step-*.json"))
+    for old_index in indexes[:-retain]:
+        try:
+            old = json.loads(old_index.read_text(encoding="utf-8"))
+            old_data = directory / str(old["data_file"])
+            if old_data.is_file():
+                old_data.unlink()
+        finally:
+            old_index.unlink(missing_ok=True)
 
 
 def run_resume(config, artifacts, launcher=None, *, resume_plan: ResumePlan):
@@ -156,35 +198,48 @@ def run_resume(config, artifacts, launcher=None, *, resume_plan: ResumePlan):
             raise RuntimeError(f"Saved time step {loaded_dt} differs from configured {plan.step_size}")
         remaining = plan.target_step - plan.step
         if remaining:
-            # Separate autosave roots protect the input case and every prior attempt.
-            resumed_artifacts = replace(artifacts, autosave=autosave,
-                                        autosave_base=autosave / config.run_name)
-            _configure_autosave(session, {"autosave": {
-                "data_frequency": plan.autosave_frequency, "suffix": "time-step", "digits": 5,
-            }}, resumed_artifacts)
+            # Do not depend on restored Fluent autosave state.  Disable native
+            # autosave and write verified checkpoints explicitly after bounded
+            # calculation chunks.
             auto_save = _autosave_settings(session)
-            auto_save.retain_most_recent_files.set_state(True)
-            auto_save.max_files.set_state(3)
+            auto_save.data_frequency.set_state(0)
+            checkpoint_case = autosave / f"{config.run_name}-resume.cas.h5"
+            session.settings.file.write_case(file_name=str(checkpoint_case))
+            if not checkpoint_case.is_file() or checkpoint_case.stat().st_size < 8:
+                raise RuntimeError(f"Fluent did not write the resume checkpoint case: {checkpoint_case}")
             # Redirect existing animation objects; never recreate scenes or injections.
             animations = session.settings.solution.calculation_activity.solution_animations
             for name in animations.get_object_names():
                 animations[name].storage_dir.set_state(frames.as_posix())
             sampling = config.solver.get("dpm_sampling")
+            sampling_artifacts = artifacts
             if sampling is not None:
-                # Unflushed and post-checkpoint rows cannot safely be appended. Keep all
-                # originals, including parallel rank files, for separate analysis.
-                if artifacts.dpm_samples.exists():
-                    artifacts.dpm_samples.rename(history / "DPM_samples")
-                artifacts.dpm_samples.mkdir(parents=True)
+                # Never move or overwrite an earlier interval.  Each resume writes
+                # to its own immutable directory; analysis merges intervals later.
+                interval = artifacts.data_export / "DPM_sample_intervals" / attempt
+                interval.mkdir(parents=True, exist_ok=False)
+                sampling_artifacts = replace(artifacts, dpm_samples=interval)
                 sampling = dict(sampling, append_sample=False)
-                (artifacts.dpm_samples / "resume_interval.json").write_text(json.dumps({
+                (interval / "resume_interval.json").write_text(json.dumps({
                     "start_time_s": plan.flow_time,
                     "target_time_s": plan.target_step * plan.step_size,
-                    "prior_samples": str(history / "DPM_samples"),
-                    "note": "These samples cover this resumed interval only, not the full run.",
+                    "checkpoint_step": plan.step,
+                    "note": "Immutable resumed interval; merge during analysis.",
                 }, indent=2) + "\n", encoding="utf-8")
-            controls.time_step_count.set_state(remaining)
-            with (record_particles(session, sampling, artifacts) if sampling else nullcontext()):
-                session.settings.solution.run_calculation.calculate()
+            advanced = 0
+            with (record_particles(session, sampling, sampling_artifacts)
+                  if sampling else nullcontext()):
+                while advanced < remaining:
+                    chunk = min(plan.autosave_frequency, remaining - advanced)
+                    controls.time_step_count.set_state(chunk)
+                    session.settings.solution.run_calculation.calculate()
+                    advanced += chunk
+                    expected_step = plan.step + advanced
+                    expected_time = plan.flow_time + advanced * plan.step_size
+                    _verify_state(session, expected_step, expected_time)
+                    _write_checkpoint(
+                        session, autosave, config, expected_step, expected_time,
+                        checkpoint_case, retain=3,
+                    )
             _verify_state(session, plan.target_step, plan.target_step * plan.step_size)
         session.settings.file.write_case_data(file_name=str(artifacts.case_data_base))

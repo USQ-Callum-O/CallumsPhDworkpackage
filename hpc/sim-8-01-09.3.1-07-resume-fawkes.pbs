@@ -27,7 +27,7 @@ LOCK_DIR="$CALLUMS_RESULTS_ROOT/Hose_simulations/sim-8-01-09.3.1-07"
 test -d "$LOCK_DIR"
 exec 9>"$LOCK_DIR/.resume.lock"
 flock -n 9 || { echo "Another resume job holds the lock for sim-8-01-09.3.1-07" >&2; exit 1; }
-ARGS=("$CONFIG" --processors 12 --autosave-frequency "${AUTOSAVE_FREQUENCY:-5}")
+ARGS=("$CONFIG" --processors 12 --autosave-frequency "${AUTOSAVE_FREQUENCY:-25}")
 if [[ -n "${CHECKPOINT_STEP:-}" ]]; then
     ARGS+=(--checkpoint-step "$CHECKPOINT_STEP")
 fi

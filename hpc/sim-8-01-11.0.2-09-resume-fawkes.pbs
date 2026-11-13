@@ -27,11 +27,11 @@ LOCK_DIR="$CALLUMS_RESULTS_ROOT/Hose_simulations/sim-8-01-11.0.2-09"
 test -d "$LOCK_DIR"
 exec 9>"$LOCK_DIR/.resume.lock"
 flock -n 9 || { echo "Another resume job holds the lock for sim-8-01-11.0.2-09" >&2; exit 1; }
-ARGS=("$CONFIG" --processors 36 --autosave-frequency "${AUTOSAVE_FREQUENCY:-15}")
+ARGS=("$CONFIG" --processors 36 --autosave-frequency "${AUTOSAVE_FREQUENCY:-25}")
 if [[ -n "${CHECKPOINT_STEP:-}" ]]; then
     ARGS+=(--checkpoint-step "$CHECKPOINT_STEP")
 fi
 printf 'Resume job %s started at %s\n' "${PBS_JOBID:-local}" "$(date)"
 python -m callums_simulation_package resume "${ARGS[@]}" --dry-run
-python -m callums_simulation_package resume "${ARGS[@]}" --stages solve export plot
+python -m callums_simulation_package resume "${ARGS[@]}" --stages plot
 printf 'Resume job finished at %s\n' "$(date)"
