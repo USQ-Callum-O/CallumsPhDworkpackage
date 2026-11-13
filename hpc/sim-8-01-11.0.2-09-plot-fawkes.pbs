@@ -1,0 +1,35 @@
+#!/bin/bash -l
+#PBS -N sim-8-01-11.0.2-09-plot
+#PBS -l select=1:ncpus=4:mem=32gb
+#PBS -l walltime=12:00:00
+#PBS -j oe
+#PBS -q default
+#PBS -M u1173289@usq.edu.au
+#PBS -P Callum_Ogilvies.PhD
+
+set -Eeuo pipefail
+cd "${PBS_O_WORKDIR:?Submit from the package root containing src and .venv}"
+
+module purge
+module load python/3.11.6-gcc-mzj
+source .venv/bin/activate
+
+export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
+export CALLUMS_RESULTS_ROOT="${CALLUMS_RESULTS_ROOT:-$HOME/Simulations/Results}"
+export MPLBACKEND=Agg
+export PYTHONUNBUFFERED=1
+export OMP_NUM_THREADS="${PBS_NCPUS:-4}"
+export OPENBLAS_NUM_THREADS="${PBS_NCPUS:-4}"
+export MKL_NUM_THREADS="${PBS_NCPUS:-4}"
+
+CONFIG="configs/sim-8-01-11.0.2-09.fawkes.json"
+RUN_ROOT="$CALLUMS_RESULTS_ROOT/Hose_simulations/sim-8-01-11.0.2-09"
+test -d "$RUN_ROOT"
+exec 9>"$RUN_ROOT/.plot.lock"
+flock -n 9 || { echo "Another plotting job holds the lock for this run" >&2; exit 1; }
+
+printf 'Plot job %s started at %s\n' "${PBS_JOBID:-local}" "$(date)"
+python -m callums_simulation_package plan "$CONFIG" --stages plot
+python -m callums_simulation_package validate "$CONFIG" --stages plot
+python -m callums_simulation_package run "$CONFIG" --stages plot
+printf 'Plot job finished at %s\n' "$(date)"
