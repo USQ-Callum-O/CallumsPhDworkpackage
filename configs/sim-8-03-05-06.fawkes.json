@@ -1163,6 +1163,14 @@
         "units": "Pa"
       }
     ],
+    "area_weighted_averages": [
+      {
+        "name": "wall_1_1_yplus",
+        "surface": "wall.1.1",
+        "field": "wall-yplus",
+        "units": "dimensionless"
+      }
+    ],
     "flow_summary": {
       "method_name": "static_pressure_0p01m_to_2p49m_surface_average",
       "start_surface": "pressure_tap_start_10mm",
@@ -1174,7 +1182,8 @@
       "density_field": "density",
       "velocity_field": "z-velocity",
       "dynamic_viscosity_pa_s": 0.000018606542261347473,
-      "cell_count": null,
+      "cell_count": 74794565,
+      "cell_count_zone": "hose-solid",
       "additional_rows": [
         {
           "method_name": "total_pressure_0p01m_to_2p49m_surface_average",

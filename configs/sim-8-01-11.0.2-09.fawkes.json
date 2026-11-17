@@ -1732,6 +1732,7 @@
       "velocity_field": "z-velocity",
       "dynamic_viscosity_pa_s": 1.8e-05,
       "cell_count": null,
+      "cell_count_zone": "hose-solid",
       "additional_rows": [
         {
           "method_name": "total_pressure_0p01m_to_2p49m_surface_average",

@@ -287,6 +287,66 @@ def _area_weighted_average(
     return _report_value(result, surface_name)
 
 
+def _write_area_weighted_averages(
+    session: Any,
+    artifacts: RunArtifacts,
+    raw_specs: Any,
+) -> None:
+    """Export configured surface area-weighted averages to one CSV file."""
+
+    if raw_specs is None:
+        raw_specs = []
+    if not isinstance(raw_specs, list):
+        raise ConfigError("export.area_weighted_averages must be an array")
+    if not raw_specs:
+        return
+
+    surface_integrals = session.settings.results.report.surface_integrals
+    rows: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+    for index, spec in enumerate(raw_specs, start=1):
+        if not isinstance(spec, Mapping):
+            raise ConfigError(
+                f"export area-weighted average {index} must be an object"
+            )
+        name = str(spec.get("name", ""))
+        surface_name = str(spec.get("surface", ""))
+        field = str(spec.get("field", ""))
+        if not SAFE_EXPORT_NAME.fullmatch(name):
+            raise ConfigError(f"invalid area-weighted average name: {name!r}")
+        if name in seen_names:
+            raise ConfigError(f"duplicate area-weighted average name: {name!r}")
+        if not SAFE_EXPORT_NAME.fullmatch(surface_name):
+            raise ConfigError(
+                f"invalid surface name for area-weighted average {name!r}: "
+                f"{surface_name!r}"
+            )
+        if not field:
+            raise ConfigError(
+                f"area-weighted average {name!r} requires a field"
+            )
+        seen_names.add(name)
+        rows.append(
+            {
+                "measurement_name": name,
+                "surface_name": surface_name,
+                "field": field,
+                "area_weighted_average": _area_weighted_average(
+                    surface_integrals,
+                    field,
+                    surface_name,
+                ),
+                "units": str(spec.get("units", "")),
+            }
+        )
+
+    output = artifacts.data_export / "area-weighted-averages.csv"
+    with output.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def _volume_weighted_average(
     session: Any,
     field: str,
@@ -300,6 +360,69 @@ def _volume_weighted_average(
         cell_function=field,
     )
     return _report_value(result, cell_zone)
+
+
+def _positive_cell_count(value: Any, source: str) -> int:
+    """Validate and normalize a configured or Fluent-reported cell count."""
+
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise ConfigError(f"{source} must be a positive integer")
+    count = int(value)
+    if count <= 0 or count != value:
+        raise ConfigError(f"{source} must be a positive integer")
+    return count
+
+
+def _flow_summary_cell_count(session: Any, raw: Mapping[str, Any]) -> int | None:
+    """Read the live Fluent cell-zone count and check any configured value."""
+
+    configured = raw.get("cell_count")
+    configured_count = (
+        None
+        if configured is None
+        else _positive_cell_count(configured, "export.flow_summary.cell_count")
+    )
+    zone_name_raw = raw.get("cell_count_zone")
+    if zone_name_raw is None:
+        return configured_count
+
+    zone_name = str(zone_name_raw)
+    if not SAFE_EXPORT_NAME.fullmatch(zone_name):
+        raise ConfigError(
+            f"invalid export.flow_summary.cell_count_zone: {zone_name!r}"
+        )
+    solution_variable_info = getattr(
+        getattr(session, "fields", None),
+        "solution_variable_info",
+        None,
+    )
+    get_zones_info = getattr(solution_variable_info, "get_zones_info", None)
+    if get_zones_info is None:
+        raise ConfigError(
+            "PyFluent fields.solution_variable_info.get_zones_info is unavailable; "
+            "cannot determine the flow-summary cell count"
+        )
+    zones_info = get_zones_info()
+    try:
+        zone_info = zones_info[zone_name]
+    except (KeyError, TypeError) as exc:
+        raise ConfigError(
+            f"flow-summary cell-count zone does not exist: {zone_name!r}"
+        ) from exc
+    if zone_info is None:
+        raise ConfigError(
+            f"flow-summary cell-count zone does not exist: {zone_name!r}"
+        )
+    actual_count = _positive_cell_count(
+        getattr(zone_info, "count", None),
+        f"Fluent cell count for zone {zone_name!r}",
+    )
+    if configured_count is not None and configured_count != actual_count:
+        raise ConfigError(
+            "configured flow-summary cell count does not match the loaded case: "
+            f"configured={configured_count}, Fluent={actual_count}, zone={zone_name!r}"
+        )
+    return actual_count
 
 
 def _area_integral_expression(session: Any, expression: str, surface_name: str) -> float:
@@ -417,6 +540,7 @@ def _write_flow_summary(
     additional_rows = raw.get("additional_rows", [])
     if not isinstance(additional_rows, list):
         raise ConfigError("export.flow_summary.additional_rows must be an array")
+    cell_count = _flow_summary_cell_count(session, raw)
 
     shared = dict(raw)
     shared.pop("additional_rows", None)
@@ -554,7 +678,7 @@ def _write_flow_summary(
         rows.append(
             {
                 "run_name": config.run_name,
-                "cell_count": spec.get("cell_count"),
+                "cell_count": cell_count,
                 "method_name": method_name,
                 "pressure_field": pressure_field,
                 "fluid_property_average_method": property_method,
@@ -599,6 +723,7 @@ def run_export(
     exports = config.export.get("surfaces", [])
     surface_reports = config.export.get("surface_reports", [])
     surface_integrals = config.export.get("surface_integrals", [])
+    area_weighted_averages = config.export.get("area_weighted_averages", [])
     flow_summary = config.export.get("flow_summary")
     momentum_flux = config.export.get("momentum_flux")
     operations = config.export.get("operations", [])
@@ -606,11 +731,12 @@ def run_export(
         not isinstance(exports, list)
         or not isinstance(surface_reports, list)
         or not isinstance(surface_integrals, list)
+        or not isinstance(area_weighted_averages, list)
         or not isinstance(operations, list)
     ):
         raise ConfigError(
             "export.surfaces, export.surface_reports, export.surface_integrals, "
-            "and export.operations must be arrays"
+            "export.area_weighted_averages, and export.operations must be arrays"
         )
     if not artifacts.case.is_file() or not artifacts.data.is_file():
         raise FileNotFoundError(
@@ -644,6 +770,11 @@ def run_export(
         # comparison, so write it first.
         _write_flow_summary(session, config, artifacts, flow_summary)
         _write_momentum_flux(session, artifacts, momentum_flux)
+        _write_area_weighted_averages(
+            session,
+            artifacts,
+            area_weighted_averages,
+        )
         _write_pressure_method_comparison(
             session,
             artifacts,

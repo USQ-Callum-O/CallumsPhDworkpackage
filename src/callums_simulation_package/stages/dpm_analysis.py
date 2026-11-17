@@ -1065,40 +1065,89 @@ def read_fluent_dpm_text_table(path: Path) -> pd.DataFrame:
     return frame
 
 
-def _dpm_station_name(path: Path) -> str | None:
-    """Return the station for serial or parallel Fluent sample filenames."""
-    match = re.fullmatch(r"(.+)\.dpm(?:\.\d+)?", path.name)
-    return match.group(1) if match else None
+def _normalised_path_token(value: str) -> str:
+    """Normalise case and separators for legacy directory/name matching."""
+    return re.sub(r"[^a-z0-9]", "", value.casefold())
 
 
-def _collect_dpm_samples(artifacts) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
+def _dpm_station_name(path: Path, expected: set[str]) -> str | None:
+    """Return a configured station for legacy/serial/parallel sample names.
+
+    Fluent normally writes ``station.dpm`` or ``station.dpm.N``.  A previous
+    run also produced ``station.N`` and two misspelled station stems, so those
+    forms are accepted without renaming or modifying the raw files.
+    """
+    name = path.name
+    match = re.fullmatch(r"(.+?)\.dpm(?:\.\d+)?", name, re.IGNORECASE)
+    if match is None:
+        match = re.fullmatch(r"(cs_?z_?\d+mm)\.\d+", name, re.IGNORECASE)
+    if match is None:
+        return None
+
+    raw_station = match.group(1)
+    by_token = {_normalised_path_token(station): station for station in expected}
+    station = by_token.get(_normalised_path_token(raw_station))
+    if station is not None:
+        return station
+
+    # Exact aliases observed in the pre-resume sample set.  These are kept
+    # deliberately narrow: interpreting every unpadded number could silently
+    # assign a genuinely different sampling plane.
+    aliases = {
+        "csz06mm": "cs_z_060mm",
+        "csz250mm": "cs_z_250mm",
+    }
+    alias = aliases.get(_normalised_path_token(raw_station))
+    return alias if alias in expected else None
+
+
+def _dpm_sample_roots(artifacts) -> list[Path]:
+    """Locate active, interval, and legacy resume sample directories."""
+    roots = [artifacts.dpm_samples]
+    intervals = artifacts.data_export / "DPM_sample_intervals"
+    if intervals.is_dir():
+        roots.extend(path for path in intervals.iterdir() if path.is_dir())
+
+    # Older resume scripts used variants such as Resume_history/resume_history
+    # and DPM_samples/DPM samples.  Match the semantic directory names rather
+    # than one spelling, while keeping the search below this run only.
+    if artifacts.run_root.is_dir():
+        history_dirs = [
+            path for path in artifacts.run_root.iterdir()
+            if path.is_dir() and _normalised_path_token(path.name) == "resumehistory"
+        ]
+        for history in history_dirs:
+            roots.extend(
+                path for path in history.rglob("*")
+                if path.is_dir() and _normalised_path_token(path.name) == "dpmsamples"
+            )
+    return roots
+
+
+def _collect_dpm_samples(
+    artifacts, expected: set[str]
+) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
     """Recover and merge active, interval, and legacy resume sample files.
 
     Raw files remain untouched. Exact duplicate crossings from repeated resume
     attempts are removed after concatenation, and source provenance is returned
     for a CSV audit table.
     """
-    roots = [artifacts.dpm_samples]
-    intervals = artifacts.data_export / "DPM_sample_intervals"
-    if intervals.is_dir():
-        roots.extend(path for path in intervals.iterdir() if path.is_dir())
-    history = artifacts.run_root / "Resume_history"
-    if history.is_dir():
-        roots.extend(history.glob("*/DPM_samples"))
+    roots = _dpm_sample_roots(artifacts)
 
     sources: dict[str, list[Path]] = {}
     seen: set[Path] = set()
     for root in roots:
         if not root.is_dir():
             continue
-        for path in sorted(root.rglob("*.dpm*")):
+        for path in sorted(root.rglob("*")):
             if not path.is_file():
                 continue
             resolved = path.resolve()
             if resolved in seen:
                 continue
             seen.add(resolved)
-            station = _dpm_station_name(path)
+            station = _dpm_station_name(path, expected)
             if station is not None:
                 sources.setdefault(station, []).append(path)
 
@@ -1108,11 +1157,24 @@ def _collect_dpm_samples(artifacts) -> tuple[dict[str, pd.DataFrame], pd.DataFra
     for station, paths in sorted(sources.items()):
         frames = []
         for path in paths:
-            frame = read_fluent_dpm_text_table(path)
+            try:
+                frame = read_fluent_dpm_text_table(path)
+            except (OSError, UnicodeError, ValueError) as exc:
+                warnings.warn(f"Skipping unreadable DPM sample {path}: {exc}")
+                audit_rows.append({
+                    "station": station,
+                    "source_file": str(path),
+                    "source_rows": 0,
+                    "source_status": "skipped_unreadable_or_empty",
+                    "source_error": str(exc),
+                })
+                continue
             audit_rows.append({
                 "station": station,
                 "source_file": str(path),
                 "source_rows": len(frame),
+                "source_status": "read",
+                "source_error": "",
             })
             if not frame.empty:
                 frames.append(frame)
@@ -1123,14 +1185,20 @@ def _collect_dpm_samples(artifacts) -> tuple[dict[str, pd.DataFrame], pd.DataFra
                 ["flow-time", "particle-id"], kind="stable"
             ).reset_index(drop=True)
             removed = before - len(combined)
+            valid_key = combined["particle-id"].fillna("").ne("") & combined["flow-time"].notna()
+            conflict_rows = int(combined.loc[valid_key].duplicated(
+                subset=["particle-id", "flow-time"], keep=False
+            ).sum())
         else:
             combined = pd.DataFrame(columns=[*DPM_COLS, "particle-id", "particle No."])
             removed = 0
+            conflict_rows = 0
         merged[station] = combined
         for row in audit_rows:
             if row["station"] == station:
                 row["merged_station_rows"] = len(combined)
                 row["exact_duplicates_removed_for_station"] = removed
+                row["conflicting_key_rows_retained_for_station"] = conflict_rows
     return merged, pd.DataFrame(audit_rows)
 
 
@@ -1182,14 +1250,14 @@ def run_dpm_analysis(config, artifacts):
             plot_axial_awa_2x2(data, out / "axial_AWA_2x2.png")
             data.to_csv(tables / "axial_AWA.csv", index=False)
 
-        samples, sample_sources = _collect_dpm_samples(artifacts)
+        expected = {item["name"] for item in config.solver.get("dpm_sampling", {}).get("surfaces", [])}
+        samples, sample_sources = _collect_dpm_samples(artifacts, expected)
         if not samples:
             raise FileNotFoundError(
                 f"No DPM samples in active, interval, or resume-history directories below "
                 f"{artifacts.run_root}"
             )
         sample_sources.to_csv(tables / "dpm_sample_sources.csv", index=False)
-        expected = {item["name"] for item in config.solver.get("dpm_sampling", {}).get("surfaces", [])}
         present = set(samples)
         missing = sorted(expected - present)
         if missing:
