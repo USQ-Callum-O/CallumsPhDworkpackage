@@ -31,5 +31,6 @@ flock -n 9 || { echo "Another plotting job holds the lock for this run" >&2; exi
 printf 'Plot job %s started at %s\n' "${PBS_JOBID:-local}" "$(date)"
 python -m callums_simulation_package plan "$CONFIG" --stages plot
 python -m callums_simulation_package validate "$CONFIG" --stages plot
+export CALLUMS_DPM_RECOVERY=1
 python -m callums_simulation_package run "$CONFIG" --stages plot
 printf 'Plot job finished at %s\n' "$(date)"
