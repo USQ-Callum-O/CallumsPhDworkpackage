@@ -6,6 +6,7 @@ snapshot, not a reconstruction of the transient history. fp_drag is acceleration
 (m/s^2); ME is a legacy diagnostic and is not the integrated Fluent DPM source.
 """
 from pathlib import Path
+import os
 import re
 import warnings
 import numpy as np
@@ -39,6 +40,12 @@ _ROW_RE = re.compile(
     r"\(\(\s*(" + _FLOAT + r"(?:\s+" + _FLOAT + r"){12})\s*\)\s*([^)]+)?\)",
     re.ASCII
 )
+
+# The rank shards supplied by Fluent put three integers before the Sample row.
+_RANK_PREFIX_RE = re.compile(r"^[+-]?\d+\s+[+-]?\d+\s+[+-]?\d+\s+(?=\(\()", re.ASCII)
+_DPM_RECOVERY_RUN = "sim-8-01-11.0.2-09"
+_DPM_RECOVERY_ATTEMPT = "20261109T063211Z-7466cc91"
+_DPM_RECOVERY_CHECKPOINT_S = 0.125  # Step 50 at 0.0025 s per step.
 
 
 def z_from_surface_name(name: str) -> float:
@@ -1035,7 +1042,7 @@ def _plot_dpm_flux_history(frame: pd.DataFrame, out_png: Path) -> None:
 
 
 
-def read_fluent_dpm_text_table(path: Path) -> pd.DataFrame:
+def read_fluent_dpm_text_table(path: Path, *, recovery: bool = False) -> pd.DataFrame:
     """Read 13-column Fluent Sample rows, retaining the full injection/particle ID.
 
     A valid header-only file represents a station with no crossings. Malformed
@@ -1043,11 +1050,20 @@ def read_fluent_dpm_text_table(path: Path) -> pd.DataFrame:
     """
     rows, identifiers = [], []
     has_header = False
+    has_text = False
     with path.open(encoding="utf-8", errors="strict") as stream:
         for line_number, line in enumerate(stream, 1):
             text = line.strip()
+            if text:
+                has_text = True
             if "parcel-mass" in text and "flow-time" in text:
                 has_header = True
+            if recovery and not text.startswith("(("):
+                prefix = _RANK_PREFIX_RE.match(text)
+                if prefix:
+                    text = text[prefix.end():]
+                elif "((" in text:
+                    raise ValueError(f"{path.name}:{line_number}: unrecognised DPM row prefix")
             if not text.startswith("(("):
                 continue
             match = _ROW_RE.fullmatch(text)
@@ -1055,13 +1071,17 @@ def read_fluent_dpm_text_table(path: Path) -> pd.DataFrame:
                 raise ValueError(f"{path.name}:{line_number}: invalid DPM sample row")
             rows.append([float(value) for value in match.group(1).split()])
             identifiers.append((match.group(2) or "").strip())
-    if not rows and not has_header:
+    if not rows and not has_header and (has_text or not recovery):
         raise ValueError(f"No Fluent DPM header or sample rows in {path.name}")
     frame = pd.DataFrame(rows, columns=DPM_COLS)
     frame["particle-id"] = pd.Series(identifiers, dtype="string")
     frame["particle No."] = pd.to_numeric(
         frame["particle-id"].str.rsplit(":", n=1).str[-1], errors="coerce"
     ).astype("Int64")
+    if recovery:
+        frame.attrs["source_status"] = "read" if rows else (
+            "header_only" if has_header else "empty_file"
+        )
     return frame
 
 
@@ -1101,12 +1121,12 @@ def _dpm_station_name(path: Path, expected: set[str]) -> str | None:
     return alias if alias in expected else None
 
 
-def _dpm_sample_roots(artifacts) -> list[Path]:
-    """Locate active, interval, and legacy resume sample directories."""
-    roots = [artifacts.dpm_samples]
+def _dpm_recovery_roots(artifacts) -> list[tuple[str, Path]]:
+    """Locate current samples and the specified pre-resume archive."""
+    roots = [("active", artifacts.dpm_samples)]
     intervals = artifacts.data_export / "DPM_sample_intervals"
     if intervals.is_dir():
-        roots.extend(path for path in intervals.iterdir() if path.is_dir())
+        roots.extend(("resume_interval", path) for path in sorted(intervals.iterdir()) if path.is_dir())
 
     # Older resume scripts used variants such as Resume_history/resume_history
     # and DPM_samples/DPM samples.  Match the semantic directory names rather
@@ -1116,9 +1136,10 @@ def _dpm_sample_roots(artifacts) -> list[Path]:
             path for path in artifacts.run_root.iterdir()
             if path.is_dir() and _normalised_path_token(path.name) == "resumehistory"
         ]
-        for history in history_dirs:
+        for history in sorted(history_dirs):
+            attempt = history / _DPM_RECOVERY_ATTEMPT
             roots.extend(
-                path for path in history.rglob("*")
+                ("archive", path) for path in sorted(attempt.glob("*"))
                 if path.is_dir() and _normalised_path_token(path.name) == "dpmsamples"
             )
     return roots
@@ -1129,15 +1150,14 @@ def _collect_dpm_samples(
 ) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
     """Recover and merge active, interval, and legacy resume sample files.
 
-    Raw files remain untouched. Exact duplicate crossings from repeated resume
-    attempts are removed after concatenation, and source provenance is returned
-    for a CSV audit table.
+    Use the archived trajectory through the checkpoint and the resumed
+    trajectory after it. Audit the rows that fall on either side of the split.
     """
-    roots = _dpm_sample_roots(artifacts)
+    roots = _dpm_recovery_roots(artifacts)
 
-    sources: dict[str, list[Path]] = {}
+    sources: dict[str, list[tuple[str, Path]]] = {}
     seen: set[Path] = set()
-    for root in roots:
+    for role, root in roots:
         if not root.is_dir():
             continue
         for path in sorted(root.rglob("*")):
@@ -1149,35 +1169,52 @@ def _collect_dpm_samples(
             seen.add(resolved)
             station = _dpm_station_name(path, expected)
             if station is not None:
-                sources.setdefault(station, []).append(path)
+                sources.setdefault(station, []).append((role, path))
 
     merged: dict[str, pd.DataFrame] = {}
     audit_rows = []
     identity = [*DPM_COLS, "particle-id"]
     for station, paths in sorted(sources.items()):
         frames = []
-        for path in paths:
+        station_audit = []
+        for role, path in paths:
+            row = {"station": station, "source_role": role, "source_file": str(path)}
             try:
-                frame = read_fluent_dpm_text_table(path)
+                frame = read_fluent_dpm_text_table(path, recovery=True)
+                if (
+                    not frame.empty
+                    and _normalised_path_token(path.name.split(".", 1)[0]) == "csz06mm"
+                    and not np.isclose(frame["z"], 0.060, rtol=0, atol=5e-6).all()
+                ):
+                    raise ValueError("legacy cs_z_06mm coordinates do not match the 60 mm plane")
             except (OSError, UnicodeError, ValueError) as exc:
-                warnings.warn(f"Skipping unreadable DPM sample {path}: {exc}")
-                audit_rows.append({
-                    "station": station,
-                    "source_file": str(path),
+                warnings.warn(f"Could not read DPM sample {path}: {exc}")
+                station_audit.append({
+                    **row,
                     "source_rows": 0,
-                    "source_status": "skipped_unreadable_or_empty",
+                    "rows_in_checkpoint_window": 0,
+                    "source_status": "parse_error",
                     "source_error": str(exc),
                 })
                 continue
-            audit_rows.append({
-                "station": station,
-                "source_file": str(path),
+            flow_time = frame["flow-time"]
+            before_or_at_checkpoint = flow_time <= _DPM_RECOVERY_CHECKPOINT_S
+            keep = before_or_at_checkpoint if role == "archive" else ~before_or_at_checkpoint
+            selected = frame.loc[keep]
+            station_audit.append({
+                **row,
                 "source_rows": len(frame),
-                "source_status": "read",
+                "source_status": frame.attrs["source_status"],
                 "source_error": "",
+                "min_flow_time_s": flow_time.min(),
+                "max_flow_time_s": flow_time.max(),
+                "rows_in_checkpoint_window": len(selected),
+                "rows_outside_checkpoint_window": len(frame) - len(selected),
+                "min_kept_flow_time_s": selected["flow-time"].min(),
+                "max_kept_flow_time_s": selected["flow-time"].max(),
             })
-            if not frame.empty:
-                frames.append(frame)
+            if not selected.empty:
+                frames.append(selected)
         if frames:
             combined = pd.concat(frames, ignore_index=True)
             before = len(combined)
@@ -1194,11 +1231,11 @@ def _collect_dpm_samples(
             removed = 0
             conflict_rows = 0
         merged[station] = combined
-        for row in audit_rows:
-            if row["station"] == station:
-                row["merged_station_rows"] = len(combined)
-                row["exact_duplicates_removed_for_station"] = removed
-                row["conflicting_key_rows_retained_for_station"] = conflict_rows
+        for row in station_audit:
+            row["merged_station_rows"] = len(combined)
+            row["exact_duplicates_removed_for_station"] = removed
+            row["conflicting_key_rows_retained_for_station"] = conflict_rows
+        audit_rows.extend(station_audit)
     return merged, pd.DataFrame(audit_rows)
 
 
@@ -1251,18 +1288,34 @@ def run_dpm_analysis(config, artifacts):
             data.to_csv(tables / "axial_AWA.csv", index=False)
 
         expected = {item["name"] for item in config.solver.get("dpm_sampling", {}).get("surfaces", [])}
-        samples, sample_sources = _collect_dpm_samples(artifacts, expected)
-        if not samples:
-            raise FileNotFoundError(
-                f"No DPM samples in active, interval, or resume-history directories below "
-                f"{artifacts.run_root}"
-            )
-        sample_sources.to_csv(tables / "dpm_sample_sources.csv", index=False)
-        present = set(samples)
+        recover = config.run_name == _DPM_RECOVERY_RUN and os.environ.get("CALLUMS_DPM_RECOVERY") == "1"
+        if recover:
+            merged, sample_sources = _collect_dpm_samples(artifacts, expected)
+            if not merged:
+                raise FileNotFoundError(f"No recognised DPM samples below {artifacts.run_root}")
+            audit_path = tables / "dpm_sample_sources.csv"
+            sample_sources.to_csv(audit_path, index=False)
+            if sample_sources["source_status"].eq("parse_error").any():
+                raise ValueError(f"DPM recovery found unreadable inputs. See {audit_path}")
+            read_roles = set(sample_sources.loc[
+                sample_sources["rows_in_checkpoint_window"] > 0, "source_role"
+            ])
+            if "archive" not in read_roles or not read_roles.intersection({"active", "resume_interval"}):
+                raise ValueError(f"DPM recovery needs populated archive and current inputs. See {audit_path}")
+            if sample_sources["conflicting_key_rows_retained_for_station"].gt(0).any():
+                warnings.warn(f"DPM recovery retained distinct rows sharing a particle ID and flow time. See {audit_path}")
+            samples = sorted(merged.items())
+            present = set(merged)
+        else:
+            files = sorted(artifacts.dpm_samples.glob("*.dpm"))
+            if not files:
+                raise FileNotFoundError(f"No .dpm samples in {artifacts.dpm_samples}")
+            present = {path.stem for path in files}
+            samples = ((path.stem, read_fluent_dpm_text_table(path)) for path in files)
         missing = sorted(expected - present)
         if missing:
             raise FileNotFoundError(f"Missing configured DPM sample stations: {missing}")
-        for name, dpm in sorted(samples.items()):
+        for name, dpm in samples:
             if dpm.empty:
                 status.append({"station": name, "status": "no_particle_crossings", "sample_rows": 0})
                 size_summary_rows.append({"plane": name, "status": "no_particle_crossings", "sample_rows": 0})
